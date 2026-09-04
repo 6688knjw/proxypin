@@ -1218,4 +1218,46 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get weakNetworkRules => 'Aturan URL';
+
+  @override
+  String get mcpServer => 'MCP Server';
+
+  @override
+  String get mcpEnabled => 'Enable MCP';
+
+  @override
+  String get mcpRunning => 'Listening';
+
+  @override
+  String get mcpStopped => 'Stopped';
+
+  @override
+  String get mcpStartFailed => 'Failed to start MCP server';
+
+  @override
+  String get mcpPort => 'MCP Port';
+
+  @override
+  String get mcpBodyLimit => 'Body size limit (bytes)';
+
+  @override
+  String get mcpToken => 'Auth Token';
+
+  @override
+  String get mcpRegenerateToken => 'Regenerate token';
+
+  @override
+  String get mcpConnectUrl => 'Connection URL';
+
+  @override
+  String get mcpCopyConfig => 'Copy connection config';
+
+  @override
+  String get mcpConnections => 'Connected clients';
+
+  @override
+  String get mcpAudit => 'Recent MCP actions';
+
+  @override
+  String get mcpAuditEmpty => 'No MCP actions yet';
 }

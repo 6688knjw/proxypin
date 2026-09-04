@@ -424,5 +424,20 @@
   "weakNetworkDownload": "下行",
   "weakNetworkBandwidth": "带宽",
   "weakNetworkLossRate": "丢包率",
-  "weakNetworkRules": "URL 规则"
+  "weakNetworkRules": "URL 规则",
+
+  "mcpServer": "MCP 服务",
+  "mcpEnabled": "启用 MCP",
+  "mcpRunning": "监听中",
+  "mcpStopped": "已停止",
+  "mcpStartFailed": "MCP 服务启动失败",
+  "mcpPort": "MCP 端口",
+  "mcpBodyLimit": "正文截断上限（字节）",
+  "mcpToken": "访问令牌",
+  "mcpRegenerateToken": "重新生成令牌",
+  "mcpConnectUrl": "连接地址",
+  "mcpCopyConfig": "复制连接配置",
+  "mcpConnections": "当前连接数",
+  "mcpAudit": "最近操作",
+  "mcpAuditEmpty": "暂无 MCP 操作记录"
 }

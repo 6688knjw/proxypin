@@ -48,6 +48,7 @@ import 'package:proxypin/ui/mobile/request/history.dart';
 import 'package:proxypin/ui/mobile/request/list.dart';
 import 'package:proxypin/ui/mobile/request/search.dart';
 import 'package:proxypin/ui/mobile/widgets/pip.dart';
+import 'package:proxypin/network/mcp/mcp_server.dart';
 import 'package:proxypin/ui/mobile/widgets/remote_device.dart';
 import 'package:proxypin/utils/ip.dart';
 import 'package:proxypin/utils/lang.dart';
@@ -127,6 +128,13 @@ class MobileHomeState extends State<MobileHomePage> implements EventListener, Li
     proxyServer = ProxyServer(widget.configuration);
     proxyServer.addListener(this);
     proxyServer.start();
+    if (Platform.isAndroid && widget.configuration.mcpEnabled) {
+      McpServerController.instance(
+        configuration: widget.configuration,
+        proxyServer: () => proxyServer,
+        session: MobileApp.container,
+      ).start();
+    }
     _remoteHistorySubscription = HistoryStorage.onRemoteImported.listen((item) => _openHistoryPage(item));
 
     if (widget.appConfiguration.upgradeNoticeV30) {

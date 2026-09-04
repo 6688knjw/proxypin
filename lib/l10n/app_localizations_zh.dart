@@ -1209,6 +1209,48 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get weakNetworkRules => 'URL 规则';
+
+  @override
+  String get mcpServer => 'MCP 服务';
+
+  @override
+  String get mcpEnabled => '启用 MCP';
+
+  @override
+  String get mcpRunning => '监听中';
+
+  @override
+  String get mcpStopped => '已停止';
+
+  @override
+  String get mcpStartFailed => 'MCP 服务启动失败';
+
+  @override
+  String get mcpPort => 'MCP 端口';
+
+  @override
+  String get mcpBodyLimit => '正文截断上限（字节）';
+
+  @override
+  String get mcpToken => '访问令牌';
+
+  @override
+  String get mcpRegenerateToken => '重新生成令牌';
+
+  @override
+  String get mcpConnectUrl => '连接地址';
+
+  @override
+  String get mcpCopyConfig => '复制连接配置';
+
+  @override
+  String get mcpConnections => '当前连接数';
+
+  @override
+  String get mcpAudit => '最近操作';
+
+  @override
+  String get mcpAuditEmpty => '暂无 MCP 操作记录';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2352,4 +2394,46 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get weakNetworkRules => 'URL 規則';
+
+  @override
+  String get mcpServer => 'MCP 服務';
+
+  @override
+  String get mcpEnabled => '啟用 MCP';
+
+  @override
+  String get mcpRunning => '監聽中';
+
+  @override
+  String get mcpStopped => '已停止';
+
+  @override
+  String get mcpStartFailed => 'MCP 服務啟動失敗';
+
+  @override
+  String get mcpPort => 'MCP 連接埠';
+
+  @override
+  String get mcpBodyLimit => '正文截斷上限（位元組）';
+
+  @override
+  String get mcpToken => '存取權杖';
+
+  @override
+  String get mcpRegenerateToken => '重新產生權杖';
+
+  @override
+  String get mcpConnectUrl => '連線位址';
+
+  @override
+  String get mcpCopyConfig => '複製連線設定';
+
+  @override
+  String get mcpConnections => '目前連線數';
+
+  @override
+  String get mcpAudit => '最近操作';
+
+  @override
+  String get mcpAuditEmpty => '尚無 MCP 操作紀錄';
 }

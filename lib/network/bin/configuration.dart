@@ -63,6 +63,11 @@ class Configuration {
   //默认是否启动
   bool startup = false;
 
+  bool mcpEnabled = false;
+  int mcpPort = 9100;
+  String mcpAuthToken = '';
+  int mcpBodyLimit = 65536;
+
   Configuration._();
 
   /// 单例
@@ -100,6 +105,10 @@ class Configuration {
     appBlacklist = config['appBlacklist'] == null ? null : List<String>.from(config['appBlacklist']);
     HostFilter.whitelist.load(config['whitelist']);
     HostFilter.blacklist.load(config['blacklist']);
+    mcpEnabled = config['mcpEnabled'] == true;
+    mcpPort = config['mcpPort'] ?? 9100;
+    mcpAuthToken = config['mcpAuthToken'] ?? '';
+    mcpBodyLimit = config['mcpBodyLimit'] ?? 65536;
   }
 
   /// 配置文件
@@ -152,6 +161,10 @@ class Configuration {
       'enabledHttp2': enabledHttp2,
       'whitelist': HostFilter.whitelist.toJson(),
       'blacklist': HostFilter.blacklist.toJson(),
+      'mcpEnabled': mcpEnabled,
+      'mcpPort': mcpPort,
+      'mcpAuthToken': mcpAuthToken,
+      'mcpBodyLimit': mcpBodyLimit,
     };
   }
 }

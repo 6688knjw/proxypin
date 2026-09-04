@@ -2469,6 +2469,21 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'URL Rules'**
   String get weakNetworkRules;
+
+  String get mcpServer;
+  String get mcpEnabled;
+  String get mcpRunning;
+  String get mcpStopped;
+  String get mcpStartFailed;
+  String get mcpPort;
+  String get mcpBodyLimit;
+  String get mcpToken;
+  String get mcpRegenerateToken;
+  String get mcpConnectUrl;
+  String get mcpCopyConfig;
+  String get mcpConnections;
+  String get mcpAudit;
+  String get mcpAuditEmpty;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

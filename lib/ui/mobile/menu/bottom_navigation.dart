@@ -38,6 +38,7 @@ import 'package:proxypin/ui/mobile/setting/request_block.dart';
 import 'package:proxypin/ui/mobile/setting/request_crypto.dart';
 import 'package:proxypin/ui/mobile/setting/request_rewrite.dart';
 import 'package:proxypin/ui/mobile/setting/script.dart';
+import 'package:proxypin/ui/mobile/setting/mcp.dart';
 import 'package:proxypin/ui/mobile/setting/ssl.dart';
 import 'package:proxypin/ui/mobile/widgets/about.dart';
 import 'package:proxypin/ui/mobile/setting/request_breakpoint.dart';
@@ -337,6 +338,13 @@ class SettingPage extends StatelessWidget {
               ])),
           const SizedBox(height: 12),
           section([
+            if (Platform.isAndroid)
+              ListTile(
+                  title: Text(localizations.mcpServer),
+                  trailing: const Icon(Icons.keyboard_arrow_right),
+                  onTap: () => navigator(context, MobileMcpWidget(proxyServer: proxyServer))),
+            if (Platform.isAndroid)
+              Divider(height: 0, thickness: 0.3, color: Theme.of(context).dividerColor.withValues(alpha: 0.22)),
             ListTile(
                 title: Text(localizations.setting),
                 trailing: const Icon(Icons.keyboard_arrow_right),

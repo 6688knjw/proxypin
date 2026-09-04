@@ -430,5 +430,20 @@
   "weakNetworkDownload": "Download",
   "weakNetworkBandwidth": "Bandwidth",
   "weakNetworkLossRate": "Packet Loss",
-  "weakNetworkRules": "URL Rules"
+  "weakNetworkRules": "URL Rules",
+
+  "mcpServer": "MCP Server",
+  "mcpEnabled": "Enable MCP",
+  "mcpRunning": "Listening",
+  "mcpStopped": "Stopped",
+  "mcpStartFailed": "Failed to start MCP server",
+  "mcpPort": "MCP Port",
+  "mcpBodyLimit": "Body size limit (bytes)",
+  "mcpToken": "Auth Token",
+  "mcpRegenerateToken": "Regenerate token",
+  "mcpConnectUrl": "Connection URL",
+  "mcpCopyConfig": "Copy connection config",
+  "mcpConnections": "Connected clients",
+  "mcpAudit": "Recent MCP actions",
+  "mcpAuditEmpty": "No MCP actions yet"
 }
