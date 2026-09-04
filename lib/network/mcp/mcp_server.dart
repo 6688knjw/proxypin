@@ -194,7 +194,7 @@ class McpServerController {
   bool _authorized(HttpRequest request) {
     return mcpTokenMatches(
       configuration.mcpAuthToken,
-      authorization: request.headers.value(HttpHeaders.authorization),
+      authorization: request.headers.value(HttpHeaders.authorizationHeader),
       queryToken: request.uri.queryParameters['token'],
     );
   }
