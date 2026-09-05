@@ -24,10 +24,10 @@ jobs:
           cache: true
 
       - run: flutter pub get
-      - run: flutter build apk --debug
+      - run: flutter build apk --release
 
       - uses: actions/upload-artifact@v4
         with:
-          name: proxypin-android
+          name: proxypin-android-release
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error

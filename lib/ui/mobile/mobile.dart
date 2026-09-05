@@ -129,11 +129,13 @@ class MobileHomeState extends State<MobileHomePage> implements EventListener, Li
     proxyServer.addListener(this);
     proxyServer.start();
     if (Platform.isAndroid && widget.configuration.mcpEnabled) {
-      McpServerController.instance(
-        configuration: widget.configuration,
-        proxyServer: () => proxyServer,
-        session: MobileApp.container,
-      ).start();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        McpServerController.instance(
+          configuration: widget.configuration,
+          proxyServer: () => proxyServer,
+          session: MobileApp.container,
+        ).start();
+      });
     }
     _remoteHistorySubscription = HistoryStorage.onRemoteImported.listen((item) => _openHistoryPage(item));
 
