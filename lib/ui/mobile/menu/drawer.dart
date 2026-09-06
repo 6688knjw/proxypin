@@ -43,7 +43,6 @@ import 'package:proxypin/ui/mobile/setting/request_block.dart';
 import 'package:proxypin/ui/mobile/setting/request_rewrite.dart';
 import 'package:proxypin/ui/mobile/setting/request_crypto.dart';
 import 'package:proxypin/ui/mobile/setting/script.dart';
-import 'package:proxypin/network/mcp/mcp_server.dart';
 import 'package:proxypin/ui/mobile/setting/mcp.dart';
 import 'package:proxypin/ui/mobile/setting/ssl.dart';
 import 'package:proxypin/ui/mobile/widgets/about.dart';
@@ -185,10 +184,7 @@ class DrawerWidget extends StatelessWidget {
             if (Platform.isAndroid)
               ListTile(
                   title: Text(localizations.mcpServer),
-                  leading: Icon(McpServerController.current?.isRunning == true ? Icons.sensors : Icons.hub_outlined),
-                  subtitle: Text(
-                      McpServerController.current?.isRunning == true ? localizations.mcpRunning : localizations.mcpStopped,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  leading: const Icon(Icons.hub_outlined),
                   onTap: () => navigator(context, MobileMcpWidget(proxyServer: proxyServer))),
             ListTile(
                 title: Text(localizations.setting),
@@ -347,11 +343,6 @@ class _SettingPage extends StatelessWidget {
             if (Platform.isAndroid)
               ListTile(
                   title: Text(localizations.mcpServer),
-                  leading: Icon(
-                      McpServerController.current?.isRunning == true ? Icons.sensors : Icons.hub_outlined),
-                  subtitle: Text(
-                      McpServerController.current?.isRunning == true ? localizations.mcpRunning : localizations.mcpStopped,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   trailing: const Icon(Icons.keyboard_arrow_right),
                   onTap: () => navigator(context, MobileMcpWidget(proxyServer: proxyServer))),
             if (Platform.isAndroid)

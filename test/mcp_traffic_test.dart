@@ -39,33 +39,33 @@ McpServices _services(ListenableList<HttpRequest> session, {int bodyLimit = 6553
 }
 
 void main() {
-  test('list_traffic filters and paginates current session', () async {
+  test('get_request_list filters and paginates current session', () async {
     final session = ListenableList<HttpRequest>([
       _request(url: 'https://example.com/api/users', method: HttpMethod.get, status: 200, requestId: 'r1'),
       _request(url: 'https://other.com/login', method: HttpMethod.post, status: 401, requestId: 'r2'),
       _request(url: 'https://example.com/api/orders', method: HttpMethod.get, status: 200, requestId: 'r3'),
     ]);
     final services = _services(session);
-    final result = await services.listTraffic({'host': 'example.com', 'method': 'GET', 'limit': 1});
+    final result = await services.getRequestList({'host': 'example.com', 'method': 'GET', 'limit': 1});
     expect(result['total'], 2);
     expect(result['items'].length, 1);
     expect(result['items'][0]['requestId'], 'r1');
   });
 
-  test('get_traffic returns truncated body', () async {
+  test('get_request_detail returns truncated body', () async {
     final request = _request(body: 'abcdefghijklmnopqrstuvwxyz', requestId: 'big');
     final session = ListenableList<HttpRequest>([request]);
     final services = _services(session, bodyLimit: 8);
-    final result = await services.getTraffic({'requestId': 'big'});
+    final result = await services.getRequestDetail({'requestId': 'big'});
     expect(result['requestBody'], 'abcdefgh');
     expect(result['requestBodyTruncated'], isTrue);
     expect(result['requestBodyOriginalLength'], 26);
   });
 
-  test('get_traffic missing id returns not_found', () async {
+  test('get_request_detail missing id returns not_found', () async {
     final services = _services(ListenableList<HttpRequest>());
     expect(
-      () => services.getTraffic({'requestId': 'missing'}),
+      () => services.getRequestDetail({'requestId': 'missing'}),
       throwsA(isA<McpException>().having((e) => e.data?['code'], 'code', 'not_found')),
     );
   });
@@ -94,15 +94,7 @@ void main() {
     );
   });
 
-  test('get_request_list aliases list_traffic', () async {
-    final session = ListenableList<HttpRequest>([
-      _request(url: 'https://example.com/api', status: 200, requestId: 'a'),
-    ]);
-    final services = _services(session);
-    final result = await services.getRequestList({});
-    expect(result['total'], 1);
-    expect(result['items'][0]['requestId'], 'a');
-  });
+
 
   test('get_request_stats aggregates methods and hosts', () async {
     final session = ListenableList<HttpRequest>([

@@ -86,16 +86,12 @@ class McpServerController {
       server.listen(_handleRequest, onError: (error, stack) {
         logger.e('MCP server listen error', error: error, stackTrace: stack);
       });
-      configuration.mcpEnabled = true;
-      await configuration.flushConfig();
       logger.i('MCP listen on ${configuration.mcpPort}');
       return true;
     } catch (e, stack) {
       lastError = e.toString();
-      configuration.mcpEnabled = false;
       _httpServer = null;
       logger.e('MCP bind failed', error: e, stackTrace: stack);
-      await configuration.flushConfig();
       return false;
     }
   }
@@ -105,9 +101,12 @@ class McpServerController {
     final server = _httpServer;
     _httpServer = null;
     _handler = null;
-    configuration.mcpEnabled = false;
     await server?.close(force: true);
-    await configuration.flushConfig();
+  }
+
+  Future<bool> restart() async {
+    await stop();
+    return start();
   }
 
   Future<bool> setEnabled(bool enabled) async {

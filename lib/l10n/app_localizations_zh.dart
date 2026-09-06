@@ -1262,7 +1262,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mcpCopyJson => '复制客户端 JSON';
 
   @override
-  String get mcpPortRestart => '下次启动 MCP 时生效';
+  String get mcpPortRestart => '正在运行时保存后立即生效';
+
+  @override
+  String get mcpAutoStart => '随应用启动';
+
+  @override
+  String get mcpAutoStartHint => '下次打开应用时自动启动 MCP';
+
+  @override
+  String get mcpLocalAddress => '本地地址';
+
+  @override
+  String get mcpLanAddress => '局域网地址';
 
   @override
   String get mcpRegenerateConfirm => '当前令牌会立即失效，确定重新生成？';
@@ -2488,7 +2500,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get mcpCopyJson => '複製用戶端 JSON';
 
   @override
-  String get mcpPortRestart => '下次啟動 MCP 時生效';
+  String get mcpPortRestart => '正在執行時儲存後立即生效';
+
+  @override
+  String get mcpAutoStart => '隨應用啟動';
+
+  @override
+  String get mcpAutoStartHint => '下次開啟應用時自動啟動 MCP';
+
+  @override
+  String get mcpLocalAddress => '本地位址';
+
+  @override
+  String get mcpLanAddress => '區域網路位址';
 
   @override
   String get mcpRegenerateConfirm => '目前權杖會立即失效，確定重新產生？';

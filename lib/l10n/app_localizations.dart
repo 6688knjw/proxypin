@@ -2488,6 +2488,10 @@ abstract class AppLocalizations {
   String get mcpCopyUrl;
   String get mcpCopyJson;
   String get mcpPortRestart;
+  String get mcpAutoStart;
+  String get mcpAutoStartHint;
+  String get mcpLocalAddress;
+  String get mcpLanAddress;
   String get mcpRegenerateConfirm;
   String get mcpLanHint;
   String get mcpCopyConfigHint;

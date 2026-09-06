@@ -1271,7 +1271,19 @@ class AppLocalizationsId extends AppLocalizations {
   String get mcpCopyJson => 'Copy client JSON';
 
   @override
-  String get mcpPortRestart => 'Takes effect the next time MCP starts';
+  String get mcpPortRestart => 'Applies immediately if MCP is running';
+
+  @override
+  String get mcpAutoStart => 'Start with app';
+
+  @override
+  String get mcpAutoStartHint => 'Start MCP the next time the app launches';
+
+  @override
+  String get mcpLocalAddress => 'Local address';
+
+  @override
+  String get mcpLanAddress => 'LAN address';
 
   @override
   String get mcpRegenerateConfirm => 'The current token will stop working immediately. Continue?';

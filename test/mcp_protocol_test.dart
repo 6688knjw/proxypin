@@ -42,9 +42,7 @@ void main() {
     const expected = [
       'get_request_list',
       'get_request_detail',
-      'get_request_body',
       'get_request_stats',
-      'search_requests',
       'get_domain_summary',
       'get_cookie_info',
       'compare_requests',
@@ -69,7 +67,11 @@ void main() {
       'import_har',
     ];
     expect(names, containsAll(expected));
-    expect(names, containsAll(['list_traffic', 'get_traffic', 'send_request', 'replay_request', 'list_rules']));
+    expect(names, containsAll(['send_request', 'replay_request', 'list_rules']));
+    expect(names, isNot(contains('list_traffic')));
+    expect(names, isNot(contains('get_traffic')));
+    expect(names, isNot(contains('search_requests')));
+    expect(names, isNot(contains('get_request_body')));
     expect(names, isNot(contains('execute_python')));
     expect(names, isNot(contains('execute_js')));
   });

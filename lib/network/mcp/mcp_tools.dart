@@ -112,22 +112,10 @@ class McpServices {
       'properties': _filterProperties,
     }, getRequestList);
     add('get_request_detail', 'Get one captured request/response by requestId.', _requestIdSchema, getRequestDetail);
-    add('get_request_body', 'Get request and/or response body by requestId.', {
-      'type': 'object',
-      'properties': {
-        'requestId': {'type': 'string'},
-        'which': {'type': 'string', 'description': 'request, response or both'},
-      },
-      'required': ['requestId'],
-    }, getRequestBody);
     add('get_request_stats', 'Aggregate counts, methods, status codes and hosts for current session.', {
       'type': 'object',
       'properties': _filterProperties,
     }, getRequestStats);
-    add('search_requests', 'Search captured traffic by keyword, URL, host, method or status.', {
-      'type': 'object',
-      'properties': _filterProperties,
-    }, searchRequests);
     add('get_domain_summary', 'Group current session traffic by host.', {
       'type': 'object',
       'properties': _filterProperties,
@@ -267,9 +255,6 @@ class McpServices {
       },
       'required': ['har'],
     }, importHar);
-
-    add('list_traffic', 'Alias of get_request_list.', {'type': 'object', 'properties': _filterProperties}, listTraffic);
-    add('get_traffic', 'Alias of get_request_detail.', _requestIdSchema, getTraffic);
     add('list_history', 'List persisted HAR history records.', {'type': 'object', 'properties': {}}, listHistory);
     add('get_history_traffic', 'Read traffic from a persisted history record.', {
       'type': 'object',
@@ -297,11 +282,7 @@ class McpServices {
     return registry;
   }
 
-  Future<Map<String, dynamic>> getRequestList(Map<String, dynamic> args) => listTraffic(args);
-
-  Future<Map<String, dynamic>> getRequestDetail(Map<String, dynamic> args) => getTraffic(args);
-
-  Future<Map<String, dynamic>> listTraffic(Map<String, dynamic> args) async {
+  Future<Map<String, dynamic>> getRequestList(Map<String, dynamic> args) async {
     final filter = TrafficFilter.fromArgs(args);
     final matched = session.source.where(filter.matches).toList();
     final sliced = _page(matched, filter.offset, filter.limit);
@@ -312,35 +293,9 @@ class McpServices {
     };
   }
 
-  Future<Map<String, dynamic>> getTraffic(Map<String, dynamic> args) async {
+  Future<Map<String, dynamic>> getRequestDetail(Map<String, dynamic> args) async {
     final request = await _requireRequest(args);
     return trafficDetail(request, bodyLimit());
-  }
-
-  Future<Map<String, dynamic>> getRequestBody(Map<String, dynamic> args) async {
-    final request = await _requireRequest(args);
-    final which = (args['which']?.toString() ?? 'both').toLowerCase();
-    final limit = bodyLimit();
-    final result = <String, dynamic>{'requestId': request.requestId};
-    if (which != 'response') {
-      final payload = BodyPayload.fromBytes(request.body, limit);
-      result['requestBody'] = payload.text;
-      result['requestBodyTruncated'] = payload.truncated;
-      result['requestBodyOriginalLength'] = payload.originalLength;
-      if (payload.base64) {
-        result['requestBodyEncoding'] = 'base64';
-      }
-    }
-    if (which != 'request') {
-      final payload = BodyPayload.fromBytes(request.response?.body, limit);
-      result['responseBody'] = payload.text;
-      result['responseBodyTruncated'] = payload.truncated;
-      result['responseBodyOriginalLength'] = payload.originalLength;
-      if (payload.base64) {
-        result['responseBodyEncoding'] = 'base64';
-      }
-    }
-    return result;
   }
 
   Future<Map<String, dynamic>> getRequestStats(Map<String, dynamic> args) async {
@@ -372,8 +327,6 @@ class McpServices {
       'hosts': hosts,
     };
   }
-
-  Future<Map<String, dynamic>> searchRequests(Map<String, dynamic> args) => listTraffic(args);
 
   Future<Map<String, dynamic>> getDomainSummary(Map<String, dynamic> args) async {
     final matched = _filteredSession(args);

@@ -26,6 +26,7 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
   String? startError;
   bool tokenVisible = false;
   bool toggling = false;
+  bool jsonExpanded = false;
   Timer? ticker;
 
   AppLocalizations get localizations => AppLocalizations.of(context)!;
@@ -43,14 +44,11 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     controller.ensureToken();
     portController = TextEditingController(text: '${configuration.mcpPort}');
     bodyLimitController = TextEditingController(text: '${configuration.mcpBodyLimit}');
-    localIp(readCache: false).then((value) {
-      if (mounted) {
-        setState(() => localAddress = value);
-      }
-    }).catchError((_) {});
-    ticker = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted && controller.isRunning) {
-        setState(() {});
+    _refreshLanAddress();
+    ticker = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      if (controller.isRunning) {
+        _refreshLanAddress();
       }
     });
   }
@@ -63,14 +61,21 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     super.dispose();
   }
 
-  String get connectUrl {
-    final host = localAddress ?? '127.0.0.1';
-    return 'http://$host:${widget.proxyServer.configuration.mcpPort}/mcp';
+  String _mcpUrl(String host) => 'http://$host:${widget.proxyServer.configuration.mcpPort}/mcp';
+
+  String get localUrl => _mcpUrl('127.0.0.1');
+
+  String get lanUrl {
+    final host = localAddress;
+    if (host == null || host.isEmpty) {
+      return localUrl;
+    }
+    return _mcpUrl(host);
   }
 
   String get connectHint {
     final token = widget.proxyServer.configuration.mcpAuthToken;
-    return 'URL: $connectUrl\nAuthorization: Bearer $token';
+    return 'URL (local): $localUrl\nURL (lan): $lanUrl\nAuthorization: Bearer $token';
   }
 
   String get clientJson {
@@ -78,7 +83,7 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     return const JsonEncoder.withIndent('  ').convert({
       'mcpServers': {
         'proxypin': {
-          'url': connectUrl,
+          'url': lanUrl,
           'headers': {'Authorization': 'Bearer $token'},
         }
       }
@@ -137,18 +142,23 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
                 subtitle: Text(localizations.mcpLanHint, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 value: running,
                 onChanged: toggling ? null : _onToggle),
+            divider(),
+            SwitchListTile(
+                hoverColor: Colors.transparent,
+                title: Text(localizations.mcpAutoStart),
+                subtitle: Text(localizations.mcpAutoStartHint, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                value: configuration.mcpEnabled,
+                onChanged: (value) {
+                  configuration.mcpEnabled = value;
+                  configuration.flushConfig();
+                  setState(() {});
+                }),
           ]),
           const SizedBox(height: 12),
           section([
-            ListTile(
-                title: Text(localizations.mcpConnectUrl),
-                subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: SelectableText(connectUrl, style: const TextStyle(fontSize: 13, fontFamily: 'monospace'))),
-                trailing: IconButton(
-                    tooltip: localizations.mcpCopyUrl,
-                    icon: const Icon(Icons.copy, size: 18),
-                    onPressed: () => _copy(connectUrl))),
+            _urlTile(localizations.mcpLocalAddress, localUrl),
+            divider(),
+            _urlTile(localizations.mcpLanAddress, lanUrl),
             divider(),
             ListTile(
                 title: Text(localizations.mcpCopyConfig),
@@ -159,18 +169,25 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
             ListTile(
                 title: Text(localizations.mcpCopyJson),
                 subtitle: Text(localizations.mcpCopyJsonHint, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                trailing: const Icon(Icons.data_object, size: 18),
-                onTap: () => _copy(clientJson)),
-            Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: SelectableText(clientJson,
-                        style: const TextStyle(fontSize: 11, fontFamily: 'monospace', height: 1.35)))),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                      tooltip: localizations.mcpCopyJson,
+                      icon: const Icon(Icons.copy, size: 18),
+                      onPressed: () => _copy(clientJson)),
+                  Icon(jsonExpanded ? Icons.expand_less : Icons.expand_more),
+                ]),
+                onTap: () => setState(() => jsonExpanded = !jsonExpanded)),
+            if (jsonExpanded)
+              Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: SelectableText(clientJson,
+                          style: const TextStyle(fontSize: 11, fontFamily: 'monospace', height: 1.35)))),
           ]),
           const SizedBox(height: 12),
           section([
@@ -244,7 +261,7 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     final color = running ? Colors.green : theme.colorScheme.outline;
     final title = running ? localizations.mcpRunning : localizations.mcpStopped;
     final subtitle = running
-        ? localizations.mcpClientsConnected(controller.sessionCount, connectUrl)
+        ? localizations.mcpClientsConnected(controller.sessionCount, lanUrl)
         : localizations.mcpHint;
     return Card(
       elevation: 0,
@@ -302,13 +319,39 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     return tiles;
   }
 
+  Widget _urlTile(String title, String url) {
+    return ListTile(
+        title: Text(title),
+        subtitle: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: SelectableText(url, style: const TextStyle(fontSize: 13, fontFamily: 'monospace'))),
+        trailing: IconButton(
+            tooltip: localizations.mcpCopyUrl,
+            icon: const Icon(Icons.copy, size: 18),
+            onPressed: () => _copy(url)));
+  }
+
+  Future<void> _refreshLanAddress() async {
+    try {
+      final value = await localIp(readCache: false);
+      if (!mounted) return;
+      if (value != localAddress) {
+        setState(() => localAddress = value);
+      } else if (controller.isRunning) {
+        setState(() {});
+      }
+    } catch (_) {
+      if (mounted && controller.isRunning) setState(() {});
+    }
+  }
+
   Future<void> _onToggle(bool value) async {
     toggling = true;
     startError = null;
     setState(() {});
     try {
       if (value) {
-        _persistPortAndLimit();
+        await _persistPortAndLimit();
         final ok = await controller.start();
         if (!ok) {
           startError = controller.lastError ?? localizations.mcpStartFailed;
@@ -342,11 +385,13 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     if (mounted) setState(() {});
   }
 
-  void _persistPortAndLimit() {
+  Future<void> _persistPortAndLimit() async {
     final configuration = widget.proxyServer.configuration;
-    final port = int.tryParse(portController.text.trim());
-    if (port != null && port > 0 && port < 65536) {
-      configuration.mcpPort = port;
+    final parsedPort = int.tryParse(portController.text.trim());
+    var shouldRestart = false;
+    if (parsedPort != null && parsedPort > 0 && parsedPort < 65536) {
+      shouldRestart = controller.isRunning && configuration.mcpPort != parsedPort;
+      configuration.mcpPort = parsedPort;
     } else {
       portController.text = '${configuration.mcpPort}';
     }
@@ -356,7 +401,14 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     } else {
       bodyLimitController.text = '${configuration.mcpBodyLimit}';
     }
-    configuration.flushConfig();
+    await configuration.flushConfig();
+    if (shouldRestart) {
+      startError = null;
+      final ok = await controller.restart();
+      if (!ok) {
+        startError = controller.lastError ?? localizations.mcpStartFailed;
+      }
+    }
     if (mounted) setState(() {});
   }
 

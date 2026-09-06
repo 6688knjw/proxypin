@@ -119,7 +119,7 @@ class McpJsonRpcHandler {
       case 'resources/read':
         final uri = args['uri']?.toString();
         if (uri == 'proxypin://traffic') {
-          final result = await registry.call('list_traffic', {'limit': 50});
+          final result = await registry.call('get_request_list', {'limit': 50});
           return {
             'contents': [
               {'uri': uri, 'mimeType': 'application/json', 'text': jsonEncode(result)}
