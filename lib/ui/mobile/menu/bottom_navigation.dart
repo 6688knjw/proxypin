@@ -342,13 +342,12 @@ class SettingPage extends StatelessWidget {
             if (Platform.isAndroid)
               ListTile(
                   leading: Icon(
-                      McpServerController.current?.isRunning == true ? Icons.sensors : Icons.hub_outlined,
-                      color: color),
+                      McpServerController.current?.isRunning == true ? Icons.sensors : Icons.hub_outlined),
                   title: Text(localizations.mcpServer),
                   subtitle: Text(
                       McpServerController.current?.isRunning == true ? localizations.mcpRunning : localizations.mcpStopped,
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                  trailing: arrow,
+                  trailing: const Icon(Icons.keyboard_arrow_right),
                   onTap: () => navigator(context, MobileMcpWidget(proxyServer: proxyServer))),
             if (Platform.isAndroid)
               Divider(height: 0, thickness: 0.3, color: Theme.of(context).dividerColor.withValues(alpha: 0.22)),
