@@ -93,4 +93,85 @@ void main() {
       throwsA(isA<McpException>().having((e) => e.data?['code'], 'code', 'not_found')),
     );
   });
+
+  test('get_request_list aliases list_traffic', () async {
+    final session = ListenableList<HttpRequest>([
+      _request(url: 'https://example.com/api', status: 200, requestId: 'a'),
+    ]);
+    final services = _services(session);
+    final result = await services.getRequestList({});
+    expect(result['total'], 1);
+    expect(result['items'][0]['requestId'], 'a');
+  });
+
+  test('get_request_stats aggregates methods and hosts', () async {
+    final session = ListenableList<HttpRequest>([
+      _request(url: 'https://example.com/a', method: HttpMethod.get, status: 200, requestId: 'a'),
+      _request(url: 'https://example.com/b', method: HttpMethod.post, status: 201, requestId: 'b'),
+      _request(url: 'https://other.com/c', method: HttpMethod.get, status: 404, requestId: 'c'),
+    ]);
+    final result = await _services(session).getRequestStats({});
+    expect(result['total'], 3);
+    expect(result['methods']['GET'], 2);
+    expect(result['hosts']['example.com'], 2);
+  });
+
+  test('get_cookie_info parses request cookies', () async {
+    final request = _request(url: 'https://example.com/me', requestId: 'cookie');
+    request.headers.set('Cookie', 'sid=abc; theme=dark');
+    request.response = HttpResponse(HttpStatus.ok)
+      ..request = request
+      ..headers.add('Set-Cookie', 'sid=abc; Path=/');
+    final result = await _services(ListenableList([request])).getCookieInfo({'requestId': 'cookie'});
+    expect(result['requestCookies']['sid'], 'abc');
+    expect(result['setCookies'][0]['name'], 'sid');
+  });
+
+  test('compare_requests reports url and method diffs', () async {
+    final left = _request(url: 'https://example.com/a', method: HttpMethod.get, status: 200, requestId: 'l');
+    final right = _request(url: 'https://example.com/b', method: HttpMethod.post, status: 200, requestId: 'r');
+    final result = await _services(ListenableList([left, right])).compareRequests({
+      'requestId': 'l',
+      'otherRequestId': 'r',
+    });
+    expect(result['diff']['url'], isTrue);
+    expect(result['diff']['method'], isTrue);
+    expect(result['diff']['status'], isFalse);
+  });
+
+  test('generate_code returns curl', () async {
+    final request = _request(url: 'https://example.com/api', requestId: 'g');
+    final result = await _services(ListenableList([request])).generateCode({'requestId': 'g', 'format': 'curl'});
+    expect(result['code'], contains("curl -X GET 'https://example.com/api'"));
+  });
+
+  test('find_sensitive_data extracts email and jwt', () async {
+    final request = _request(
+      url: 'https://example.com/login',
+      body: 'email=user@example.com&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.abc',
+      requestId: 's',
+    );
+    final result = await _services(ListenableList([request])).findSensitiveData({'requestId': 's'});
+    expect(result['emails'], contains('user@example.com'));
+    expect(result['jwts'], isNotEmpty);
+  });
+
+  test('analyze_auth reports bearer scheme', () async {
+    final request = _request(url: 'https://example.com/me', requestId: 'auth');
+    request.headers.set('Authorization', 'Bearer abc.def.ghi');
+    final result = await _services(ListenableList([request])).analyzeAuth({'requestId': 'auth'});
+    expect(result['hasAuthorization'], isTrue);
+    expect(result['scheme'], 'Bearer');
+  });
+
+  test('extract_api_endpoints groups by method and path', () async {
+    final session = ListenableList<HttpRequest>([
+      _request(url: 'https://example.com/api/users', method: HttpMethod.get, status: 200, requestId: 'e1'),
+      _request(url: 'https://example.com/api/users?id=1', method: HttpMethod.get, status: 200, requestId: 'e2'),
+    ]);
+    final result = await _services(session).extractApiEndpoints({});
+    expect(result['total'], 1);
+    expect(result['items'][0]['path'], '/api/users');
+    expect(result['items'][0]['count'], 2);
+  });
 }

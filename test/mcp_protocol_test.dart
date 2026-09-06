@@ -39,10 +39,39 @@ void main() {
       'method': 'tools/list',
     });
     final names = (response!['result']['tools'] as List).map((tool) => tool['name']).toList();
+    const expected = [
+      'get_request_list',
+      'get_request_detail',
+      'get_request_body',
+      'get_request_stats',
+      'search_requests',
+      'get_domain_summary',
+      'get_cookie_info',
+      'compare_requests',
+      'analyze_encrypted_content',
+      'replay_request',
+      'generate_code',
+      'add_breakpoint',
+      'remove_breakpoint',
+      'list_breakpoints',
+      'get_pending_intercepts',
+      'release_intercept',
+      'list_rewrite_rules',
+      'add_rewrite_rule',
+      'remove_rewrite_rule',
+      'list_scripts',
+      'get_script_content',
+      'create_or_update_script',
+      'find_sensitive_data',
+      'analyze_auth',
+      'extract_api_endpoints',
+      'export_har',
+      'import_har',
+    ];
+    expect(names, containsAll(expected));
     expect(names, containsAll(['list_traffic', 'get_traffic', 'send_request', 'replay_request', 'list_rules']));
     expect(names, isNot(contains('execute_python')));
     expect(names, isNot(contains('execute_js')));
-    expect(names, isNot(contains('update_rule')));
   });
 
   test('unknown method returns method not found', () async {

@@ -169,6 +169,10 @@ class RequestBreakpointInterceptor extends Interceptor {
     return response;
   }
 
+  List<String> get pendingRequestIds => _pausedRequests.keys.map((id) => id.toString()).toList();
+
+  List<String> get pendingResponseIds => _pausedResponses.keys.map((id) => id.toString()).toList();
+
   void resumeRequest(String requestId, HttpRequest? request) {
     if (_pausedRequests.containsKey(requestId)) {
       _pausedRequests.remove(requestId)?.complete(request);

@@ -439,5 +439,18 @@
   "mcpCopyConfig": "复制连接配置",
   "mcpConnections": "当前连接数",
   "mcpAudit": "最近操作",
-  "mcpAuditEmpty": "暂无 MCP 操作记录"
+  "mcpAuditEmpty": "暂无 MCP 操作记录",
+  "mcpHint": "开启后，同一局域网的 AI 客户端可读取抓包流量",
+  "mcpCopyUrl": "复制地址",
+  "mcpCopyJson": "复制客户端 JSON",
+  "mcpPortRestart": "下次启动 MCP 时生效",
+  "mcpRegenerateConfirm": "当前令牌会立即失效，确定重新生成？",
+  "mcpLanHint": "同一 Wi-Fi 下的电脑可连接",
+  "mcpCopyConfigHint": "URL + Bearer Token",
+  "mcpCopyJsonHint": "Cursor / Claude / OpenCode",
+  "mcpHideToken": "隐藏令牌",
+  "mcpShowToken": "显示令牌",
+  "mcpTokenInvalidateHint": "旧令牌会立即失效",
+  "mcpBodyLimitHint": "单条请求/响应正文截断字节数",
+  "mcpClientsConnected": "{count} 个客户端已连接 · {url}"
 }

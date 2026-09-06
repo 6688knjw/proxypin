@@ -1258,4 +1258,45 @@ class AppLocalizationsTh extends AppLocalizations {
 
   @override
   String get mcpAuditEmpty => 'No MCP actions yet';
+
+  @override
+  String get mcpHint => 'Turn on MCP so LAN AI clients can inspect captured traffic';
+
+  @override
+  String get mcpCopyUrl => 'Copy URL';
+
+  @override
+  String get mcpCopyJson => 'Copy client JSON';
+
+  @override
+  String get mcpPortRestart => 'Takes effect the next time MCP starts';
+
+  @override
+  String get mcpRegenerateConfirm => 'The current token will stop working immediately. Continue?';
+
+  @override
+  String get mcpLanHint => 'Computers on the same Wi-Fi can connect';
+
+  @override
+  String get mcpCopyConfigHint => 'URL + Bearer Token';
+
+  @override
+  String get mcpCopyJsonHint => 'Cursor / Claude / OpenCode';
+
+  @override
+  String get mcpHideToken => 'Hide token';
+
+  @override
+  String get mcpShowToken => 'Show token';
+
+  @override
+  String get mcpTokenInvalidateHint => 'The old token stops working immediately';
+
+  @override
+  String get mcpBodyLimitHint => 'Truncate each request/response body';
+
+  @override
+  String mcpClientsConnected(Object count, Object url) {
+    return '$count client(s) · $url';
+  }
 }

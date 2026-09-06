@@ -396,5 +396,18 @@
   "mcpCopyConfig": "複製連線設定",
   "mcpConnections": "目前連線數",
   "mcpAudit": "最近操作",
-  "mcpAuditEmpty": "尚無 MCP 操作紀錄"
+  "mcpAuditEmpty": "尚無 MCP 操作紀錄",
+  "mcpHint": "開啟後，同一區域網路的 AI 用戶端可讀取抓包流量",
+  "mcpCopyUrl": "複製位址",
+  "mcpCopyJson": "複製用戶端 JSON",
+  "mcpPortRestart": "下次啟動 MCP 時生效",
+  "mcpRegenerateConfirm": "目前權杖會立即失效，確定重新產生？",
+  "mcpLanHint": "同一 Wi-Fi 下的電腦可連線",
+  "mcpCopyConfigHint": "URL + Bearer Token",
+  "mcpCopyJsonHint": "Cursor / Claude / OpenCode",
+  "mcpHideToken": "隱藏權杖",
+  "mcpShowToken": "顯示權杖",
+  "mcpTokenInvalidateHint": "舊權杖會立即失效",
+  "mcpBodyLimitHint": "單筆請求/回應正文截斷位元組數",
+  "mcpClientsConnected": "{count} 個用戶端已連線 · {url}"
 }

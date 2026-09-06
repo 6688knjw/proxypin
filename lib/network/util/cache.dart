@@ -54,6 +54,8 @@ class ExpiringCache<K, V> {
 
   V? operator [](K key) => get(key);
 
+  Iterable<K> get keys => _cache.keys;
+
   V? remove(K key) {
     _expirationTimes[key]?.cancel();
     _expirationTimes.remove(key);

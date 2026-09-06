@@ -445,5 +445,18 @@
   "mcpCopyConfig": "Copy connection config",
   "mcpConnections": "Connected clients",
   "mcpAudit": "Recent MCP actions",
-  "mcpAuditEmpty": "No MCP actions yet"
+  "mcpAuditEmpty": "No MCP actions yet",
+  "mcpHint": "Turn on MCP so LAN AI clients can inspect captured traffic",
+  "mcpCopyUrl": "Copy URL",
+  "mcpCopyJson": "Copy client JSON",
+  "mcpPortRestart": "Takes effect the next time MCP starts",
+  "mcpRegenerateConfirm": "The current token will stop working immediately. Continue?",
+  "mcpLanHint": "Computers on the same Wi-Fi can connect",
+  "mcpCopyConfigHint": "URL + Bearer Token",
+  "mcpCopyJsonHint": "Cursor / Claude / OpenCode",
+  "mcpHideToken": "Hide token",
+  "mcpShowToken": "Show token",
+  "mcpTokenInvalidateHint": "The old token stops working immediately",
+  "mcpBodyLimitHint": "Truncate each request/response body",
+  "mcpClientsConnected": "{count} client(s) · {url}"
 }

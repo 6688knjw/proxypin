@@ -2484,6 +2484,19 @@ abstract class AppLocalizations {
   String get mcpConnections;
   String get mcpAudit;
   String get mcpAuditEmpty;
+  String get mcpHint;
+  String get mcpCopyUrl;
+  String get mcpCopyJson;
+  String get mcpPortRestart;
+  String get mcpRegenerateConfirm;
+  String get mcpLanHint;
+  String get mcpCopyConfigHint;
+  String get mcpCopyJsonHint;
+  String get mcpHideToken;
+  String get mcpShowToken;
+  String get mcpTokenInvalidateHint;
+  String get mcpBodyLimitHint;
+  String mcpClientsConnected(Object count, Object url);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

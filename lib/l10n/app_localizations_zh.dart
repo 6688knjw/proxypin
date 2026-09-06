@@ -1251,6 +1251,47 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mcpAuditEmpty => '暂无 MCP 操作记录';
+
+  @override
+  String get mcpHint => '开启后，同一局域网的 AI 客户端可读取抓包流量';
+
+  @override
+  String get mcpCopyUrl => '复制地址';
+
+  @override
+  String get mcpCopyJson => '复制客户端 JSON';
+
+  @override
+  String get mcpPortRestart => '下次启动 MCP 时生效';
+
+  @override
+  String get mcpRegenerateConfirm => '当前令牌会立即失效，确定重新生成？';
+
+  @override
+  String get mcpLanHint => '同一 Wi-Fi 下的电脑可连接';
+
+  @override
+  String get mcpCopyConfigHint => 'URL + Bearer Token';
+
+  @override
+  String get mcpCopyJsonHint => 'Cursor / Claude / OpenCode';
+
+  @override
+  String get mcpHideToken => '隐藏令牌';
+
+  @override
+  String get mcpShowToken => '显示令牌';
+
+  @override
+  String get mcpTokenInvalidateHint => '旧令牌会立即失效';
+
+  @override
+  String get mcpBodyLimitHint => '单条请求/响应正文截断字节数';
+
+  @override
+  String mcpClientsConnected(Object count, Object url) {
+    return '$count 个客户端已连接 · $url';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2436,4 +2477,45 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mcpAuditEmpty => '尚無 MCP 操作紀錄';
+
+  @override
+  String get mcpHint => '開啟後，同一區域網路的 AI 用戶端可讀取抓包流量';
+
+  @override
+  String get mcpCopyUrl => '複製位址';
+
+  @override
+  String get mcpCopyJson => '複製用戶端 JSON';
+
+  @override
+  String get mcpPortRestart => '下次啟動 MCP 時生效';
+
+  @override
+  String get mcpRegenerateConfirm => '目前權杖會立即失效，確定重新產生？';
+
+  @override
+  String get mcpLanHint => '同一 Wi-Fi 下的電腦可連線';
+
+  @override
+  String get mcpCopyConfigHint => 'URL + Bearer Token';
+
+  @override
+  String get mcpCopyJsonHint => 'Cursor / Claude / OpenCode';
+
+  @override
+  String get mcpHideToken => '隱藏權杖';
+
+  @override
+  String get mcpShowToken => '顯示權杖';
+
+  @override
+  String get mcpTokenInvalidateHint => '舊權杖會立即失效';
+
+  @override
+  String get mcpBodyLimitHint => '單筆請求/回應正文截斷位元組數';
+
+  @override
+  String mcpClientsConnected(Object count, Object url) {
+    return '$count 個用戶端已連線 · $url';
+  }
 }
