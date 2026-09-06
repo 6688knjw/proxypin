@@ -67,7 +67,32 @@ void main() {
       'import_har',
     ];
     expect(names, containsAll(expected));
-    expect(names, containsAll(['send_request', 'replay_request', 'list_rules']));
+    expect(names, containsAll([
+      'send_request',
+      'replay_request',
+      'list_rules',
+      'list_hosts',
+      'add_host',
+      'remove_host',
+      'list_block_rules',
+      'add_block_rule',
+      'remove_block_rule',
+      'list_map_rules',
+      'add_map_rule',
+      'remove_map_rule',
+      'list_crypto_rules',
+      'add_crypto_rule',
+      'remove_crypto_rule',
+      'list_network_conditions',
+      'add_network_condition_rule',
+      'remove_network_condition_rule',
+      'list_environments',
+      'set_environment_variable',
+      'set_active_environment',
+      'list_favorites',
+      'add_favorite',
+      'remove_favorite',
+    ]));
     expect(names, isNot(contains('list_traffic')));
     expect(names, isNot(contains('get_traffic')));
     expect(names, isNot(contains('search_requests')));

@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:proxypin/network/bin/server.dart';
 import 'package:proxypin/network/channel/host_port.dart';
+import 'package:proxypin/network/components/manager/environment_manager.dart';
+import 'package:proxypin/network/components/manager/hosts_manager.dart';
+import 'package:proxypin/network/components/manager/network_condition_manager.dart';
 import 'package:proxypin/network/components/manager/request_block_manager.dart';
 import 'package:proxypin/network/components/manager/request_breakpoint_manager.dart';
 import 'package:proxypin/network/components/manager/request_crypto_manager.dart';
@@ -13,6 +16,7 @@ import 'package:proxypin/network/components/request_breakpoint.dart';
 import 'package:proxypin/network/http/http.dart';
 import 'package:proxypin/network/http/http_client.dart';
 import 'package:proxypin/network/mcp/mcp_models.dart';
+import 'package:proxypin/storage/favorites.dart';
 import 'package:proxypin/storage/histories.dart';
 import 'package:proxypin/utils/curl.dart';
 import 'package:proxypin/utils/har.dart';
@@ -277,8 +281,138 @@ class McpServices {
     }, sendRequest);
     add('get_proxy_status', 'Get proxy running state, listen port and HTTPS capture flag.',
         {'type': 'object', 'properties': {}}, getProxyStatus);
-    add('list_rules', 'List script, rewrite, map and block rule summaries.', {'type': 'object', 'properties': {}},
-        listRules);
+    add('list_rules', 'List script, rewrite, map, block, hosts and crypto rule summaries.',
+        {'type': 'object', 'properties': {}}, listRules);
+    add('list_hosts', 'List Hosts mapping entries.', {'type': 'object', 'properties': {}}, listHosts);
+    add('add_host', 'Add a Hosts mapping from host to IP/address.', {
+      'type': 'object',
+      'properties': {
+        'host': {'type': 'string'},
+        'toAddress': {'type': 'string'},
+        'enabled': {'type': 'boolean'},
+      },
+      'required': ['host', 'toAddress'],
+    }, addHost);
+    add('remove_host', 'Remove a Hosts mapping by index, id or host.', {
+      'type': 'object',
+      'properties': {
+        'index': {'type': 'integer'},
+        'id': {'type': 'string'},
+        'host': {'type': 'string'},
+      },
+    }, removeHost);
+    add('list_block_rules', 'List request/response block rules.', {'type': 'object', 'properties': {}}, listBlockRules);
+    add('add_block_rule', 'Add a request or response block rule.', {
+      'type': 'object',
+      'properties': {
+        'url': {'type': 'string'},
+        'type': {'type': 'string', 'description': 'blockRequest or blockResponse'},
+        'enabled': {'type': 'boolean'},
+      },
+      'required': ['url'],
+    }, addBlockRule);
+    add('remove_block_rule', 'Remove a block rule by index or url.', {
+      'type': 'object',
+      'properties': {
+        'index': {'type': 'integer'},
+        'url': {'type': 'string'},
+      },
+    }, removeBlockRule);
+    add('list_map_rules', 'List request map (mock) rules.', {'type': 'object', 'properties': {}}, listMapRules);
+    add('add_map_rule', 'Add a local request map that returns a synthetic response.', {
+      'type': 'object',
+      'properties': {
+        'url': {'type': 'string'},
+        'name': {'type': 'string'},
+        'enabled': {'type': 'boolean'},
+        'statusCode': {'type': 'integer'},
+        'headers': {'type': 'object'},
+        'body': {'type': 'string'},
+        'script': {'type': 'string'},
+      },
+      'required': ['url'],
+    }, addMapRule);
+    add('remove_map_rule', 'Remove a request map rule by index, url or name.', {
+      'type': 'object',
+      'properties': {
+        'index': {'type': 'integer'},
+        'url': {'type': 'string'},
+        'name': {'type': 'string'},
+      },
+    }, removeMapRule);
+    add('list_crypto_rules', 'List request decrypt/encrypt rules.', {'type': 'object', 'properties': {}},
+        listCryptoRules);
+    add('add_crypto_rule', 'Add an AES decrypt/encrypt rule for matching URLs.', {
+      'type': 'object',
+      'properties': {
+        'name': {'type': 'string'},
+        'urlPattern': {'type': 'string'},
+        'field': {'type': 'string'},
+        'enabled': {'type': 'boolean'},
+        'key': {'type': 'string'},
+        'iv': {'type': 'string'},
+        'ivSource': {'type': 'string'},
+        'ivPrefixLength': {'type': 'integer'},
+        'mode': {'type': 'string'},
+        'padding': {'type': 'string'},
+        'keyLength': {'type': 'integer'},
+      },
+      'required': ['name', 'urlPattern', 'key'],
+    }, addCryptoRule);
+    add('remove_crypto_rule', 'Remove a crypto rule by index, urlPattern or name.', {
+      'type': 'object',
+      'properties': {
+        'index': {'type': 'integer'},
+        'name': {'type': 'string'},
+        'urlPattern': {'type': 'string'},
+      },
+    }, removeCryptoRule);
+    add('list_network_conditions', 'List weak-network profiles and URL rules.', {'type': 'object', 'properties': {}},
+        listNetworkConditions);
+    add('add_network_condition_rule', 'Add a weak-network URL rule bound to a profileId (g2/g3/g4/g5/wifi/slow).', {
+      'type': 'object',
+      'properties': {
+        'url': {'type': 'string'},
+        'profileId': {'type': 'string'},
+        'enabled': {'type': 'boolean'},
+        'enableManager': {'type': 'boolean'},
+      },
+      'required': ['url'],
+    }, addNetworkConditionRule);
+    add('remove_network_condition_rule', 'Remove a weak-network URL rule by index or url.', {
+      'type': 'object',
+      'properties': {
+        'index': {'type': 'integer'},
+        'url': {'type': 'string'},
+      },
+    }, removeNetworkConditionRule);
+    add('list_environments', 'List environment variable sets and the active environment.',
+        {'type': 'object', 'properties': {}}, listEnvironments);
+    add('set_environment_variable', 'Create or update a variable. Omit value to delete.', {
+      'type': 'object',
+      'properties': {
+        'key': {'type': 'string'},
+        'value': {'type': 'string'},
+        'enabled': {'type': 'boolean'},
+        'environment': {'type': 'string', 'description': 'Environment id or name. Default Global.'},
+      },
+      'required': ['key'],
+    }, setEnvironmentVariable);
+    add('set_active_environment', 'Activate a named environment, or pass empty to use Global only.', {
+      'type': 'object',
+      'properties': {
+        'environment': {'type': 'string'},
+      },
+    }, setActiveEnvironment);
+    add('list_favorites', 'List favorite captured requests.', {'type': 'object', 'properties': {}}, listFavorites);
+    add('add_favorite', 'Save a captured request to favorites by requestId.', _requestIdSchema, addFavorite);
+    add('remove_favorite', 'Remove a favorite by requestId or index.', {
+      'type': 'object',
+      'properties': {
+        'index': {'type': 'integer'},
+        'requestId': {'type': 'string'},
+      },
+    }, removeFavorite);
     return registry;
   }
 
@@ -966,7 +1100,439 @@ class McpServices {
         });
       }
     } catch (_) {}
+    try {
+      final hosts = await HostsManager.instance;
+      for (final item in hosts.list) {
+        if (item.isFolder) {
+          continue;
+        }
+        items.add({
+          'kind': 'host',
+          'id': item.id,
+          'host': item.host,
+          'toAddress': item.toAddress,
+          'enabled': item.enabled,
+        });
+      }
+    } catch (_) {}
+    try {
+      final crypto = await RequestCryptoManager.instance;
+      for (final rule in crypto.rules) {
+        items.add({
+          'kind': 'crypto',
+          'name': rule.name,
+          'url': rule.urlPattern,
+          'enabled': rule.enabled,
+        });
+      }
+    } catch (_) {}
     return {'items': items};
+  }
+
+  Future<Map<String, dynamic>> listHosts(Map<String, dynamic> args) async {
+    final manager = await HostsManager.instance;
+    return {
+      'enabled': manager.enabled,
+      'items': [
+        for (var i = 0; i < manager.list.length; i++)
+          if (!manager.list[i].isFolder)
+            {
+              'index': i,
+              ...manager.list[i].toJson(),
+            },
+      ],
+    };
+  }
+
+  Future<Map<String, dynamic>> addHost(Map<String, dynamic> args) async {
+    final host = args['host']?.toString();
+    final toAddress = args['toAddress']?.toString();
+    if (host == null || host.isEmpty || toAddress == null || toAddress.isEmpty) {
+      throw McpException.invalidParams('host and toAddress are required');
+    }
+    final manager = await HostsManager.instance;
+    final item = HostsItem(
+      host: host,
+      toAddress: toAddress,
+      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+    );
+    await manager.addHosts(item);
+    await manager.flushConfig();
+    auditLog.add('add_host', '$host -> $toAddress');
+    return {'ok': true, 'item': item.toJson()};
+  }
+
+  Future<Map<String, dynamic>> removeHost(Map<String, dynamic> args) async {
+    final manager = await HostsManager.instance;
+    final id = args['id']?.toString();
+    HostsItem? removed;
+    if (id != null && id.isNotEmpty) {
+      for (final item in manager.list) {
+        if (item.id == id) {
+          removed = item;
+          break;
+        }
+      }
+    }
+    if (removed == null) {
+      final wantHost = args['host']?.toString();
+      final index = _findIndex(manager.list.length, args, (i) {
+        final item = manager.list[i];
+        if (item.isFolder) {
+          return false;
+        }
+        if (wantHost != null && wantHost.isNotEmpty && item.host == wantHost) {
+          return true;
+        }
+        return _matchNameOrUrl(args, url: item.host, name: item.host);
+      });
+      if (index != null) {
+        removed = manager.list[index];
+      }
+    }
+    if (removed == null || removed.isFolder) {
+      throw McpException.app('not_found', 'host mapping not found');
+    }
+    await manager.removeHosts([removed]);
+    auditLog.add('remove_host', removed.host);
+    return {'ok': true, 'removed': removed.toJson()};
+  }
+
+  Future<Map<String, dynamic>> listBlockRules(Map<String, dynamic> args) async {
+    final manager = await RequestBlockManager.instance;
+    return {
+      'enabled': manager.enabled,
+      'items': [
+        for (var i = 0; i < manager.list.length; i++) {'index': i, ...manager.list[i].toJson()},
+      ],
+    };
+  }
+
+  Future<Map<String, dynamic>> addBlockRule(Map<String, dynamic> args) async {
+    final url = args['url']?.toString();
+    if (url == null || url.isEmpty) {
+      throw McpException.invalidParams('url is required');
+    }
+    var type = BlockType.blockRequest;
+    final typeName = args['type']?.toString();
+    if (typeName != null && typeName.isNotEmpty) {
+      try {
+        type = BlockType.nameOf(typeName);
+      } catch (_) {
+        throw McpException.invalidParams('type must be blockRequest or blockResponse');
+      }
+    }
+    final manager = await RequestBlockManager.instance;
+    final item = RequestBlockItem(args['enabled'] is bool ? args['enabled'] as bool : true, url, type);
+    manager.addBlockRequest(item);
+    auditLog.add('add_block_rule', '${type.name} $url');
+    return {'ok': true, 'index': manager.list.length - 1, 'item': item.toJson()};
+  }
+
+  Future<Map<String, dynamic>> removeBlockRule(Map<String, dynamic> args) async {
+    final manager = await RequestBlockManager.instance;
+    final index = _findIndex(manager.list.length, args, (i) {
+      return _matchNameOrUrl(args, url: manager.list[i].url);
+    });
+    if (index == null) {
+      throw McpException.app('not_found', 'block rule not found');
+    }
+    final removed = manager.list[index];
+    manager.removeBlockRequest(index);
+    auditLog.add('remove_block_rule', removed.url);
+    return {'ok': true, 'removed': removed.toJson()};
+  }
+
+  Future<Map<String, dynamic>> listMapRules(Map<String, dynamic> args) async {
+    final manager = await RequestMapManager.instance;
+    final items = <Map<String, dynamic>>[];
+    for (var i = 0; i < manager.rules.length; i++) {
+      final rule = manager.rules[i];
+      final item = await manager.getMapItem(rule);
+      items.add({
+        'index': i,
+        ...rule.toJson(),
+        if (item != null) 'item': item.toJson(),
+      });
+    }
+    return {'enabled': manager.enabled, 'items': items};
+  }
+
+  Future<Map<String, dynamic>> addMapRule(Map<String, dynamic> args) async {
+    final url = args['url']?.toString();
+    if (url == null || url.isEmpty) {
+      throw McpException.invalidParams('url is required');
+    }
+    final script = args['script']?.toString();
+    final type = (script != null && script.isNotEmpty) ? RequestMapType.script : RequestMapType.local;
+    final manager = await RequestMapManager.instance;
+    final rule = RequestMapRule(
+      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      name: args['name']?.toString(),
+      url: url,
+      type: type,
+    );
+    final headers = args['headers'] is Map
+        ? Map<String, String>.from(
+            (args['headers'] as Map).map((key, value) => MapEntry(key.toString(), value.toString())))
+        : null;
+    final item = RequestMapItem(
+      script: script,
+      statusCode: args['statusCode'] is int ? args['statusCode'] as int : 200,
+      headers: headers,
+      body: args['body']?.toString(),
+    );
+    await manager.addRule(rule, item);
+    auditLog.add('add_map_rule', '${type.name} $url');
+    return {'ok': true, 'index': manager.rules.length - 1, 'rule': rule.toJson()};
+  }
+
+  Future<Map<String, dynamic>> removeMapRule(Map<String, dynamic> args) async {
+    final manager = await RequestMapManager.instance;
+    final index = _findIndex(manager.rules.length, args, (i) {
+      final rule = manager.rules[i];
+      return _matchNameOrUrl(args, name: rule.name, url: rule.url);
+    });
+    if (index == null) {
+      throw McpException.app('not_found', 'map rule not found');
+    }
+    final removed = manager.rules[index];
+    await manager.deleteRule(index);
+    await manager.flushConfig();
+    auditLog.add('remove_map_rule', removed.url);
+    return {'ok': true, 'removed': removed.toJson()};
+  }
+
+  Future<Map<String, dynamic>> listCryptoRules(Map<String, dynamic> args) async {
+    final manager = await RequestCryptoManager.instance;
+    return {
+      'enabled': manager.enabled,
+      'items': [
+        for (var i = 0; i < manager.rules.length; i++) {'index': i, ...manager.rules[i].toJson()},
+      ],
+    };
+  }
+
+  Future<Map<String, dynamic>> addCryptoRule(Map<String, dynamic> args) async {
+    final name = args['name']?.toString();
+    final urlPattern = args['urlPattern']?.toString();
+    final key = args['key']?.toString();
+    if (name == null || name.isEmpty || urlPattern == null || urlPattern.isEmpty || key == null || key.isEmpty) {
+      throw McpException.invalidParams('name, urlPattern and key are required');
+    }
+    final manager = await RequestCryptoManager.instance;
+    final rule = CryptoRule(
+      name: name,
+      urlPattern: urlPattern,
+      field: args['field']?.toString(),
+      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      config: CryptoKeyConfig(
+        key: key,
+        iv: args['iv']?.toString() ?? '',
+        ivSource: args['ivSource']?.toString() ?? 'manual',
+        ivPrefixLength: args['ivPrefixLength'] is int ? args['ivPrefixLength'] as int : 16,
+        mode: args['mode']?.toString() ?? 'ECB',
+        padding: args['padding']?.toString() ?? 'PKCS7',
+        keyLength: args['keyLength'] is int ? args['keyLength'] as int : 128,
+      ),
+    );
+    await manager.addRule(rule);
+    await manager.flushConfig();
+    auditLog.add('add_crypto_rule', '$name $urlPattern');
+    return {'ok': true, 'index': manager.rules.length - 1, 'rule': rule.toJson()};
+  }
+
+  Future<Map<String, dynamic>> removeCryptoRule(Map<String, dynamic> args) async {
+    final manager = await RequestCryptoManager.instance;
+    final index = _findIndex(manager.rules.length, args, (i) {
+      final rule = manager.rules[i];
+      return _matchNameOrUrl(args, name: rule.name, url: rule.urlPattern);
+    });
+    if (index == null) {
+      throw McpException.app('not_found', 'crypto rule not found');
+    }
+    final removed = manager.rules[index];
+    await manager.removeRule(index);
+    await manager.flushConfig();
+    auditLog.add('remove_crypto_rule', removed.name);
+    return {'ok': true, 'removed': removed.toJson()};
+  }
+
+  Future<Map<String, dynamic>> listNetworkConditions(Map<String, dynamic> args) async {
+    final manager = await NetworkConditionManager.instance;
+    return {
+      'enabled': manager.enabled,
+      'profiles': [for (final profile in manager.allProfiles) profile.toJson()],
+      'items': [
+        for (var i = 0; i < manager.rules.length; i++) {'index': i, ...manager.rules[i].toJson()},
+      ],
+    };
+  }
+
+  Future<Map<String, dynamic>> addNetworkConditionRule(Map<String, dynamic> args) async {
+    final url = args['url']?.toString();
+    if (url == null || url.isEmpty) {
+      throw McpException.invalidParams('url is required');
+    }
+    final manager = await NetworkConditionManager.instance;
+    final profileId = args['profileId']?.toString() ?? manager.defaultProfile.id;
+    if (manager.findProfile(profileId) == null) {
+      throw McpException.invalidParams('unknown profileId');
+    }
+    final rule = NetworkConditionRule(
+      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      url: url,
+      profileId: profileId,
+    );
+    manager.rules.add(rule);
+    if (args['enableManager'] == true) {
+      manager.enabled = true;
+    }
+    await manager.flushConfig();
+    auditLog.add('add_network_condition_rule', '$url $profileId');
+    return {'ok': true, 'index': manager.rules.length - 1, 'rule': rule.toJson()};
+  }
+
+  Future<Map<String, dynamic>> removeNetworkConditionRule(Map<String, dynamic> args) async {
+    final manager = await NetworkConditionManager.instance;
+    final index = _findIndex(manager.rules.length, args, (i) {
+      return _matchNameOrUrl(args, url: manager.rules[i].url);
+    });
+    if (index == null) {
+      throw McpException.app('not_found', 'network condition rule not found');
+    }
+    final removed = manager.rules.removeAt(index);
+    await manager.flushConfig();
+    auditLog.add('remove_network_condition_rule', removed.url);
+    return {'ok': true, 'removed': removed.toJson()};
+  }
+
+  Future<Map<String, dynamic>> listEnvironments(Map<String, dynamic> args) async {
+    final manager = await EnvironmentManager.instance;
+    return {
+      'enabled': manager.enabled,
+      'activeId': manager.activeId,
+      'items': [for (final env in manager.environments) env.toJson()],
+    };
+  }
+
+  Future<Map<String, dynamic>> setEnvironmentVariable(Map<String, dynamic> args) async {
+    final key = args['key']?.toString();
+    if (key == null || key.isEmpty) {
+      throw McpException.invalidParams('key is required');
+    }
+    final manager = await EnvironmentManager.instance;
+    final env = _resolveEnvironment(manager, args['environment']?.toString());
+    if (env == null) {
+      throw McpException.app('not_found', 'environment not found');
+    }
+    if (!args.containsKey('value') || args['value'] == null) {
+      env.variables.removeWhere((item) => item.key == key);
+      await manager.flushConfig();
+      auditLog.add('set_environment_variable', 'delete $key');
+      return {'ok': true, 'deleted': true, 'key': key, 'environment': env.id};
+    }
+    final value = args['value'].toString();
+    final enabled = args['enabled'] is bool ? args['enabled'] as bool : true;
+    var existing = false;
+    for (final item in env.variables) {
+      if (item.key == key) {
+        item.value = value;
+        item.enabled = enabled;
+        existing = true;
+        break;
+      }
+    }
+    if (!existing) {
+      env.variables.add(EnvironmentVariable(key: key, value: value, enabled: enabled));
+    }
+    await manager.flushConfig();
+    auditLog.add('set_environment_variable', '${env.id} $key');
+    return {'ok': true, 'updated': existing, 'key': key, 'environment': env.id};
+  }
+
+  Future<Map<String, dynamic>> setActiveEnvironment(Map<String, dynamic> args) async {
+    final manager = await EnvironmentManager.instance;
+    final name = args['environment']?.toString();
+    if (name == null || name.isEmpty || name == 'global') {
+      manager.setActive(null);
+      await manager.flushConfig();
+      auditLog.add('set_active_environment', 'global');
+      return {'ok': true, 'activeId': null};
+    }
+    final env = _resolveEnvironment(manager, name);
+    if (env == null || env.isGlobal) {
+      throw McpException.app('not_found', 'named environment not found');
+    }
+    manager.setActive(env.id);
+    await manager.flushConfig();
+    auditLog.add('set_active_environment', env.id);
+    return {'ok': true, 'activeId': env.id};
+  }
+
+  Future<Map<String, dynamic>> listFavorites(Map<String, dynamic> args) async {
+    final favorites = await FavoriteStorage.favorites;
+    final items = <Map<String, dynamic>>[];
+    var index = 0;
+    for (final favorite in favorites) {
+      items.add({
+        'index': index,
+        'name': favorite.name,
+        'requestId': favorite.request.requestId,
+        'method': favorite.request.method.name,
+        'url': favorite.request.requestUrl,
+        'status': favorite.response?.status.code,
+      });
+      index++;
+    }
+    return {'items': items};
+  }
+
+  Future<Map<String, dynamic>> addFavorite(Map<String, dynamic> args) async {
+    final request = await _requireRequest(args);
+    await FavoriteStorage.addFavorite(request);
+    auditLog.add('add_favorite', request.requestId);
+    return {'ok': true, 'requestId': request.requestId};
+  }
+
+  Future<Map<String, dynamic>> removeFavorite(Map<String, dynamic> args) async {
+    final favorites = (await FavoriteStorage.favorites).toList();
+    Favorite? removed;
+    if (args['index'] is int) {
+      final index = args['index'] as int;
+      if (index >= 0 && index < favorites.length) {
+        removed = favorites[index];
+      }
+    } else {
+      final requestId = args['requestId']?.toString();
+      if (requestId == null || requestId.isEmpty) {
+        throw McpException.invalidParams('index or requestId is required');
+      }
+      for (final favorite in favorites) {
+        if (favorite.request.requestId == requestId) {
+          removed = favorite;
+          break;
+        }
+      }
+    }
+    if (removed == null) {
+      throw McpException.app('not_found', 'favorite not found');
+    }
+    await FavoriteStorage.removeFavorite(removed);
+    auditLog.add('remove_favorite', removed.request.requestId);
+    return {'ok': true, 'requestId': removed.request.requestId};
+  }
+
+  Environment? _resolveEnvironment(EnvironmentManager manager, String? name) {
+    if (name == null || name.isEmpty || name == 'global') {
+      return manager.global;
+    }
+    for (final env in manager.environments) {
+      if (env.id == name || env.name == name) {
+        return env;
+      }
+    }
+    return null;
   }
 
   Future<HttpResponse> _send(HttpRequest request) async {
