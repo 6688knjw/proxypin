@@ -65,7 +65,9 @@ class Configuration {
 
   bool mcpEnabled = false;
   int mcpPort = 9100;
+  bool mcpAuthEnabled = true;
   String mcpAuthToken = '';
+  bool mcpSseEnabled = true;
   int mcpBodyLimit = 65536;
 
   Configuration._();
@@ -107,7 +109,9 @@ class Configuration {
     HostFilter.blacklist.load(config['blacklist']);
     mcpEnabled = config['mcpEnabled'] == true;
     mcpPort = config['mcpPort'] ?? 9100;
+    mcpAuthEnabled = config['mcpAuthEnabled'] ?? true;
     mcpAuthToken = config['mcpAuthToken'] ?? '';
+    mcpSseEnabled = config['mcpSseEnabled'] ?? true;
     mcpBodyLimit = config['mcpBodyLimit'] ?? 65536;
   }
 
@@ -163,7 +167,9 @@ class Configuration {
       'blacklist': HostFilter.blacklist.toJson(),
       'mcpEnabled': mcpEnabled,
       'mcpPort': mcpPort,
+      'mcpAuthEnabled': mcpAuthEnabled,
       'mcpAuthToken': mcpAuthToken,
+      'mcpSseEnabled': mcpSseEnabled,
       'mcpBodyLimit': mcpBodyLimit,
     };
   }

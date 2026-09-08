@@ -61,7 +61,8 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     super.dispose();
   }
 
-  String _mcpUrl(String host) => 'http://$host:${widget.proxyServer.configuration.mcpPort}/mcp';
+  String _mcpUrl(String host, {String path = 'mcp'}) =>
+      'http://$host:${widget.proxyServer.configuration.mcpPort}/$path';
 
   String get localUrl => _mcpUrl('127.0.0.1');
 
@@ -73,20 +74,53 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     return _mcpUrl(host);
   }
 
+  String get localSseUrl => _mcpUrl('127.0.0.1', path: 'sse');
+
+  String get lanSseUrl {
+    final host = localAddress;
+    if (host == null || host.isEmpty) {
+      return localSseUrl;
+    }
+    return _mcpUrl(host, path: 'sse');
+  }
+
+  Map<String, String>? get _authHeaders {
+    final configuration = widget.proxyServer.configuration;
+    if (!configuration.mcpAuthEnabled) {
+      return null;
+    }
+    return {'Authorization': 'Bearer ${configuration.mcpAuthToken}'};
+  }
+
+  bool get sseEnabled => widget.proxyServer.configuration.mcpSseEnabled;
+
+  String get activeLocalUrl => sseEnabled ? localSseUrl : localUrl;
+
+  String get activeLanUrl => sseEnabled ? lanSseUrl : lanUrl;
+
   String get connectHint {
-    final token = widget.proxyServer.configuration.mcpAuthToken;
-    return 'URL (local): $localUrl\nURL (lan): $lanUrl\nAuthorization: Bearer $token';
+    final lines = <String>[
+      'URL (local): $activeLocalUrl',
+      'URL (lan): $activeLanUrl',
+    ];
+    final headers = _authHeaders;
+    if (headers != null) {
+      lines.add('Authorization: ${headers['Authorization']}');
+    }
+    return lines.join('\n');
   }
 
   String get clientJson {
-    final token = widget.proxyServer.configuration.mcpAuthToken;
+    final headers = _authHeaders;
+    final entry = <String, dynamic>{'url': activeLanUrl};
+    if (sseEnabled) {
+      entry['type'] = 'sse';
+    }
+    if (headers != null) {
+      entry['headers'] = headers;
+    }
     return const JsonEncoder.withIndent('  ').convert({
-      'mcpServers': {
-        'proxypin': {
-          'url': lanUrl,
-          'headers': {'Authorization': 'Bearer $token'},
-        }
-      }
+      'mcpServers': {'proxypin': entry}
     });
   }
 
@@ -153,12 +187,46 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
                   configuration.flushConfig();
                   setState(() {});
                 }),
+            divider(),
+            SwitchListTile(
+                hoverColor: Colors.transparent,
+                title: Text(localizations.mcpSseEnabled),
+                subtitle: Text(localizations.mcpSseEnabledHint, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                value: configuration.mcpSseEnabled,
+                onChanged: (value) async {
+                  configuration.mcpSseEnabled = value;
+                  configuration.flushConfig();
+                  if (!value) {
+                    await controller.closeSseClients();
+                  }
+                  setState(() {});
+                }),
+            divider(),
+            SwitchListTile(
+                hoverColor: Colors.transparent,
+                title: Text(localizations.mcpAuthEnabled),
+                subtitle: Text(localizations.mcpAuthEnabledHint, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                value: configuration.mcpAuthEnabled,
+                onChanged: (value) {
+                  configuration.mcpAuthEnabled = value;
+                  if (value) {
+                    controller.ensureToken();
+                  }
+                  configuration.flushConfig();
+                  setState(() {});
+                }),
           ]),
           const SizedBox(height: 12),
           section([
             _urlTile(localizations.mcpLocalAddress, localUrl),
             divider(),
             _urlTile(localizations.mcpLanAddress, lanUrl),
+            if (configuration.mcpSseEnabled) ...[
+              divider(),
+              _urlTile(localizations.mcpSseLocalAddress, localSseUrl),
+              divider(),
+              _urlTile(localizations.mcpSseLanAddress, lanSseUrl),
+            ],
             divider(),
             ListTile(
                 title: Text(localizations.mcpCopyConfig),
@@ -190,31 +258,33 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
                           style: const TextStyle(fontSize: 11, fontFamily: 'monospace', height: 1.35)))),
           ]),
           const SizedBox(height: 12),
-          section([
-            ListTile(
-                title: Text(localizations.mcpToken),
-                subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: SelectableText(maskedToken, style: const TextStyle(fontSize: 13, fontFamily: 'monospace'))),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  IconButton(
-                      tooltip: tokenVisible ? localizations.mcpHideToken : localizations.mcpShowToken,
-                      icon: Icon(tokenVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
-                      onPressed: () => setState(() => tokenVisible = !tokenVisible)),
-                  IconButton(
-                      tooltip: localizations.copy,
-                      icon: const Icon(Icons.copy, size: 18),
-                      onPressed: () => _copy(configuration.mcpAuthToken)),
-                ])),
-            divider(),
-            ListTile(
-                title: Text(localizations.mcpRegenerateToken),
-                subtitle: Text(localizations.mcpTokenInvalidateHint,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                trailing: const Icon(Icons.refresh, size: 18),
-                onTap: _regenerateToken),
-          ]),
-          const SizedBox(height: 12),
+          if (configuration.mcpAuthEnabled) ...[
+            section([
+              ListTile(
+                  title: Text(localizations.mcpToken),
+                  subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: SelectableText(maskedToken, style: const TextStyle(fontSize: 13, fontFamily: 'monospace'))),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                        tooltip: tokenVisible ? localizations.mcpHideToken : localizations.mcpShowToken,
+                        icon: Icon(tokenVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                        onPressed: () => setState(() => tokenVisible = !tokenVisible)),
+                    IconButton(
+                        tooltip: localizations.copy,
+                        icon: const Icon(Icons.copy, size: 18),
+                        onPressed: () => _copy(configuration.mcpAuthToken)),
+                  ])),
+              divider(),
+              ListTile(
+                  title: Text(localizations.mcpRegenerateToken),
+                  subtitle: Text(localizations.mcpTokenInvalidateHint,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  trailing: const Icon(Icons.refresh, size: 18),
+                  onTap: _regenerateToken),
+            ]),
+            const SizedBox(height: 12),
+          ],
           section([
             ListTile(
                 title: Text(localizations.mcpPort),
@@ -261,7 +331,7 @@ class _MobileMcpWidgetState extends State<MobileMcpWidget> {
     final color = running ? Colors.green : theme.colorScheme.outline;
     final title = running ? localizations.mcpRunning : localizations.mcpStopped;
     final subtitle = running
-        ? localizations.mcpClientsConnected(controller.sessionCount, lanUrl)
+        ? localizations.mcpClientsConnected(controller.sessionCount, activeLanUrl)
         : localizations.mcpHint;
     return Card(
       elevation: 0,

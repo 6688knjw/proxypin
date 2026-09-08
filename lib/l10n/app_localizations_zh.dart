@@ -1304,6 +1304,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String mcpClientsConnected(Object count, Object url) {
     return '$count 个客户端已连接 · $url';
   }
+
+  @override
+  String get mcpSseEnabled => 'SSE 连接';
+
+  @override
+  String get mcpSseEnabledHint => '保持 GET /mcp 与 /sse 长连接，供 Streamable HTTP / SSE 客户端使用';
+
+  @override
+  String get mcpAuthEnabled => '启用访问令牌';
+
+  @override
+  String get mcpAuthEnabledHint => '客户端需携带 Authorization: Bearer';
+
+  @override
+  String get mcpSseLocalAddress => 'SSE 本地地址';
+
+  @override
+  String get mcpSseLanAddress => 'SSE 局域网地址';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2542,4 +2560,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String mcpClientsConnected(Object count, Object url) {
     return '$count 個用戶端已連線 · $url';
   }
+
+  @override
+  String get mcpSseEnabled => 'SSE 連線';
+
+  @override
+  String get mcpSseEnabledHint => '保持 GET /mcp 與 /sse 長連線，供 Streamable HTTP / SSE 用戶端使用';
+
+  @override
+  String get mcpAuthEnabled => '啟用存取權杖';
+
+  @override
+  String get mcpAuthEnabledHint => '用戶端需攜帶 Authorization: Bearer';
+
+  @override
+  String get mcpSseLocalAddress => 'SSE 本地位址';
+
+  @override
+  String get mcpSseLanAddress => 'SSE 區域網路位址';
 }

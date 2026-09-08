@@ -413,5 +413,11 @@
   "mcpShowToken": "顯示權杖",
   "mcpTokenInvalidateHint": "舊權杖會立即失效",
   "mcpBodyLimitHint": "單筆請求/回應正文截斷位元組數",
-  "mcpClientsConnected": "{count} 個用戶端已連線 · {url}"
+  "mcpClientsConnected": "{count} 個用戶端已連線 · {url}",
+  "mcpSseEnabled": "SSE 連線",
+  "mcpSseEnabledHint": "保持 GET /mcp 與 /sse 長連線，供 Streamable HTTP / SSE 用戶端使用",
+  "mcpAuthEnabled": "啟用存取權杖",
+  "mcpAuthEnabledHint": "用戶端需攜帶 Authorization: Bearer",
+  "mcpSseLocalAddress": "SSE 本地位址",
+  "mcpSseLanAddress": "SSE 區域網路位址"
 }

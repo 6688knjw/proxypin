@@ -1312,4 +1312,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String mcpClientsConnected(Object count, Object url) {
     return '$count client(s) · $url';
   }
+
+  @override
+  String get mcpSseEnabled => 'SSE connection';
+
+  @override
+  String get mcpSseEnabledHint => 'Keep GET /mcp and /sse open for Streamable HTTP / SSE clients';
+
+  @override
+  String get mcpAuthEnabled => 'Require access token';
+
+  @override
+  String get mcpAuthEnabledHint => 'Clients must send Authorization: Bearer';
+
+  @override
+  String get mcpSseLocalAddress => 'SSE local address';
+
+  @override
+  String get mcpSseLanAddress => 'SSE LAN address';
 }

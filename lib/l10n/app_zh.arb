@@ -456,5 +456,11 @@
   "mcpShowToken": "显示令牌",
   "mcpTokenInvalidateHint": "旧令牌会立即失效",
   "mcpBodyLimitHint": "单条请求/响应正文截断字节数",
-  "mcpClientsConnected": "{count} 个客户端已连接 · {url}"
+  "mcpClientsConnected": "{count} 个客户端已连接 · {url}",
+  "mcpSseEnabled": "SSE 连接",
+  "mcpSseEnabledHint": "保持 GET /mcp 与 /sse 长连接，供 Streamable HTTP / SSE 客户端使用",
+  "mcpAuthEnabled": "启用访问令牌",
+  "mcpAuthEnabledHint": "客户端需携带 Authorization: Bearer",
+  "mcpSseLocalAddress": "SSE 本地地址",
+  "mcpSseLanAddress": "SSE 局域网地址"
 }

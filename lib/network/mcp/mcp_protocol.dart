@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:proxypin/network/mcp/mcp_models.dart';
 import 'package:proxypin/network/mcp/mcp_tools.dart';
 
-bool mcpTokenMatches(String expected, {String? authorization, String? queryToken}) {
+bool mcpTokenMatches(String expected, {bool required = true, String? authorization, String? queryToken}) {
+  if (!required) {
+    return true;
+  }
   if (expected.isEmpty) {
     return false;
   }

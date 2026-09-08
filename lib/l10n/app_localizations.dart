@@ -2501,6 +2501,12 @@ abstract class AppLocalizations {
   String get mcpTokenInvalidateHint;
   String get mcpBodyLimitHint;
   String mcpClientsConnected(Object count, Object url);
+  String get mcpSseEnabled;
+  String get mcpSseEnabledHint;
+  String get mcpAuthEnabled;
+  String get mcpAuthEnabledHint;
+  String get mcpSseLocalAddress;
+  String get mcpSseLanAddress;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

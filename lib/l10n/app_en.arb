@@ -462,5 +462,11 @@
   "mcpShowToken": "Show token",
   "mcpTokenInvalidateHint": "The old token stops working immediately",
   "mcpBodyLimitHint": "Truncate each request/response body",
-  "mcpClientsConnected": "{count} client(s) · {url}"
+  "mcpClientsConnected": "{count} client(s) · {url}",
+  "mcpSseEnabled": "SSE connection",
+  "mcpSseEnabledHint": "Keep GET /mcp and /sse open for Streamable HTTP / SSE clients",
+  "mcpAuthEnabled": "Require access token",
+  "mcpAuthEnabledHint": "Clients must send Authorization: Bearer",
+  "mcpSseLocalAddress": "SSE local address",
+  "mcpSseLanAddress": "SSE LAN address"
 }

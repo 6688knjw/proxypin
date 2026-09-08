@@ -117,5 +117,7 @@ void main() {
     expect(mcpTokenMatches('secret', authorization: 'Bearer secret'), isTrue);
     expect(mcpTokenMatches('secret', queryToken: 'secret'), isTrue);
     expect(mcpTokenMatches(''), isFalse);
+    expect(mcpTokenMatches('secret', required: false), isTrue);
+    expect(mcpTokenMatches('', required: false), isTrue);
   });
 }
