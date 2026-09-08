@@ -111,6 +111,39 @@ void main() {
     expect(response!['error']['code'], -32601);
   });
 
+  test('tools/call accepts non-String map arguments', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r1',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 4,
+      'method': 'tools/call',
+      'params': <dynamic, dynamic>{
+        'name': 'get_request_detail',
+        'arguments': <dynamic, dynamic>{'requestId': 'r1'},
+      },
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['requestId'], 'r1');
+  });
+
+  test('tools/call accepts requestId as a raw argument string', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r2',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 5,
+      'method': 'tools/call',
+      'params': {'name': 'get_request_detail', 'arguments': 'r2'},
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['requestId'], 'r2');
+  });
+
   test('auth helper rejects missing or wrong token', () {
     expect(mcpTokenMatches('secret'), isFalse);
     expect(mcpTokenMatches('secret', authorization: 'Bearer wrong'), isFalse);

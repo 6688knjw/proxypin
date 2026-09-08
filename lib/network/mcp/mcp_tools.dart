@@ -503,11 +503,11 @@ class McpServices {
 
   Future<Map<String, dynamic>> compareRequests(Map<String, dynamic> args) async {
     final left = await _requireRequest(args);
-    final otherId = args['otherRequestId']?.toString();
-    if (otherId == null || otherId.isEmpty) {
+    final otherId = args['otherRequestId']?.toString() ?? args['other_request_id']?.toString();
+    if (otherId == null || otherId.trim().isEmpty) {
       throw McpException.invalidParams('otherRequestId is required');
     }
-    final right = _findInSession(otherId) ?? await _findInHistoryCache(otherId);
+    final right = await _findRequest(otherId.trim());
     if (right == null) {
       throw McpException.app('not_found', 'otherRequestId not found');
     }
@@ -627,7 +627,7 @@ class McpServices {
   }
 
   Future<Map<String, dynamic>> releaseIntercept(Map<String, dynamic> args) async {
-    final requestId = args['requestId']?.toString();
+    final requestId = _requestIdFrom(args);
     if (requestId == null || requestId.isEmpty) {
       throw McpException.invalidParams('requestId is required');
     }
@@ -1005,16 +1005,18 @@ class McpServices {
       request.body = utf8.encode(args['body'].toString());
     }
     final response = await _send(request);
+    request.response = response;
+    final captured = _latestSessionMatch(request) ?? request;
     auditLog.add('send_request', '${method.name} $url -> ${response.status.code}');
-    return trafficDetail(request..response = response, bodyLimit());
+    return trafficDetail(captured, bodyLimit());
   }
 
   Future<Map<String, dynamic>> replayRequest(Map<String, dynamic> args) async {
-    final requestId = args['requestId']?.toString();
+    final requestId = _requestIdFrom(args);
     if (requestId == null || requestId.isEmpty) {
       throw McpException.invalidParams('requestId is required');
     }
-    final original = _findInSession(requestId) ?? await _findInHistoryCache(requestId);
+    final original = await _findRequest(requestId);
     if (original == null) {
       throw McpException.app('not_found', 'requestId not found');
     }
@@ -1041,8 +1043,10 @@ class McpServices {
       request.body = args['body'] == null ? null : utf8.encode(args['body'].toString());
     }
     final response = await _send(request);
+    request.response = response;
+    final captured = _latestSessionMatch(request) ?? request;
     auditLog.add('replay_request', '${request.method.name} ${request.requestUrl} -> ${response.status.code}');
-    return trafficDetail(request..response = response, bodyLimit());
+    return trafficDetail(captured, bodyLimit());
   }
 
   Future<Map<String, dynamic>> getProxyStatus(Map<String, dynamic> args) async {
@@ -1545,9 +1549,33 @@ class McpServices {
   }
 
   HttpRequest? _findInSession(String requestId) {
+    final wanted = requestId.trim();
     for (final request in session.source) {
-      if (request.requestId == requestId) {
+      if (request.requestId == wanted) {
         return request;
+      }
+    }
+    return null;
+  }
+
+  HttpRequest? _findInSessionByUrl(String requestId) {
+    final wanted = requestId.trim();
+    if (!wanted.startsWith('http://') && !wanted.startsWith('https://')) {
+      return null;
+    }
+    for (var i = session.source.length - 1; i >= 0; i--) {
+      if (session.source[i].requestUrl == wanted) {
+        return session.source[i];
+      }
+    }
+    return null;
+  }
+
+  HttpRequest? _latestSessionMatch(HttpRequest request) {
+    for (var i = session.source.length - 1; i >= 0; i--) {
+      final item = session.source[i];
+      if (item.method == request.method && item.requestUrl == request.requestUrl) {
+        return item;
       }
     }
     return null;
@@ -1558,13 +1586,18 @@ class McpServices {
     if (storage == null) {
       return null;
     }
+    final wanted = requestId.trim();
     for (final item in storage.histories) {
-      final cached = item.requests;
+      var cached = item.requests;
       if (cached == null) {
-        continue;
+        try {
+          cached = await storage.getRequests(item);
+        } catch (_) {
+          continue;
+        }
       }
       for (final request in cached) {
-        if (request.requestId == requestId) {
+        if (request.requestId == wanted) {
           return request;
         }
       }
@@ -1600,12 +1633,35 @@ class McpServices {
     });
   }
 
+  String? _requestIdFrom(Map<String, dynamic> args) {
+    for (final key in const ['requestId', 'request_id', '_id', 'id']) {
+      final value = args[key];
+      if (value is Map) {
+        final nested = _requestIdFrom(asStringKeyedMap(value));
+        if (nested != null) {
+          return nested;
+        }
+      } else if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
+      }
+    }
+    final summary = args['summary'];
+    if (summary is Map) {
+      return _requestIdFrom(asStringKeyedMap(summary));
+    }
+    return null;
+  }
+
+  Future<HttpRequest?> _findRequest(String requestId) async {
+    return _findInSession(requestId) ?? await _findInHistoryCache(requestId) ?? _findInSessionByUrl(requestId);
+  }
+
   Future<HttpRequest> _requireRequest(Map<String, dynamic> args) async {
-    final requestId = args['requestId']?.toString();
+    final requestId = _requestIdFrom(args);
     if (requestId == null || requestId.isEmpty) {
       throw McpException.invalidParams('requestId is required');
     }
-    final request = _findInSession(requestId) ?? await _findInHistoryCache(requestId);
+    final request = await _findRequest(requestId);
     if (request == null) {
       throw McpException.app('not_found', 'requestId not found');
     }

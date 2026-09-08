@@ -56,23 +56,25 @@ class McpJsonRpcHandler {
     if (decoded is List) {
       final responses = <Map<String, dynamic>>[];
       for (final item in decoded) {
-        if (item is Map<String, dynamic>) {
-          final response = await handle(item);
-          if (response != null) {
-            responses.add(response);
-          }
+        final message = asStringKeyedMap(item);
+        if (message.isEmpty && item is! Map) {
+          continue;
+        }
+        final response = await handle(message);
+        if (response != null) {
+          responses.add(response);
         }
       }
       return responses;
     }
-    if (decoded is Map<String, dynamic>) {
-      return handle(decoded);
+    if (decoded is Map) {
+      return handle(asStringKeyedMap(decoded));
     }
     return _error(null, -32700, 'Parse error');
   }
 
   Future<Map<String, dynamic>> _dispatch(String method, dynamic params) async {
-    final args = params is Map<String, dynamic> ? params : <String, dynamic>{};
+    final args = asStringKeyedMap(params);
     switch (method) {
       case 'initialize':
         return {
@@ -94,10 +96,7 @@ class McpJsonRpcHandler {
         if (name == null || name.isEmpty) {
           throw McpException.invalidParams('tool name is required');
         }
-        final toolArgs = args['arguments'] is Map<String, dynamic>
-            ? args['arguments'] as Map<String, dynamic>
-            : <String, dynamic>{};
-        final result = await registry.call(name, toolArgs);
+        final result = await registry.call(name, toolArgsFrom(args['arguments']));
         return {
           'content': [
             {'type': 'text', 'text': jsonEncode(result)}

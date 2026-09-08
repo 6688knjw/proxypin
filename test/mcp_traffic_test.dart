@@ -62,6 +62,29 @@ void main() {
     expect(result['requestBodyOriginalLength'], 26);
   });
 
+  test('get_request_detail accepts nested summary requestId', () async {
+    final request = _request(url: 'https://example.com/login', requestId: 'nested');
+    final result = await _services(ListenableList([request])).getRequestDetail({
+      'summary': {'requestId': 'nested'},
+    });
+    expect(result['requestId'], 'nested');
+    expect(result['summary']['url'], 'https://example.com/login');
+  });
+
+  test('get_request_detail finds request by url when id is a url', () async {
+    final request = _request(url: 'https://example.com/login', requestId: 'real-id');
+    final result = await _services(ListenableList([request])).getRequestDetail({
+      'requestId': 'https://example.com/login',
+    });
+    expect(result['requestId'], 'real-id');
+  });
+
+  test('HttpRequest.copy keeps requestId', () {
+    final request = _request(url: 'https://example.com/a', requestId: 'keep-me');
+    expect(request.copy().requestId, 'keep-me');
+    expect(request.copy(uri: 'https://example.com/b').requestId, 'keep-me');
+  });
+
   test('get_request_detail missing id returns not_found', () async {
     final services = _services(ListenableList<HttpRequest>());
     expect(

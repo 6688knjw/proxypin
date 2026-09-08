@@ -3,6 +3,45 @@ import 'dart:convert';
 import 'package:proxypin/network/http/http.dart';
 import 'package:proxypin/network/http/http_headers.dart';
 
+Map<String, dynamic> asStringKeyedMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    try {
+      return asStringKeyedMap(jsonDecode(value));
+    } catch (_) {}
+  }
+  return <String, dynamic>{};
+}
+
+Map<String, dynamic> toolArgsFrom(dynamic value) {
+  if (value == null) {
+    return <String, dynamic>{};
+  }
+  if (value is Map) {
+    return asStringKeyedMap(value);
+  }
+  if (value is List && value.isNotEmpty) {
+    final first = value.first;
+    if (first is Map) {
+      return asStringKeyedMap(first);
+    }
+    return {'requestId': first.toString()};
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    final decoded = asStringKeyedMap(value);
+    if (decoded.isNotEmpty) {
+      return decoded;
+    }
+    return {'requestId': value.trim()};
+  }
+  return {'requestId': value.toString()};
+}
+
 class McpException implements Exception {
   final int code;
   final String message;
@@ -172,6 +211,7 @@ Map<String, dynamic> trafficDetail(HttpRequest request, int bodyLimit) {
   final response = request.response;
   final responseBody = BodyPayload.fromBytes(response?.body, bodyLimit);
   return {
+    'requestId': request.requestId,
     'summary': trafficSummary(request),
     'requestHeaders': headerMap(request.headers),
     'requestBody': requestBody.text,

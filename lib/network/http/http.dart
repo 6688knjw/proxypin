@@ -324,6 +324,7 @@ class HttpRequest extends HttpMessage {
     }
     request.hostAndPort ??= hostAndPort;
     request.streamId = streamId;
+    request.requestId = requestId;
     request.body = body;
     request.messages = messages;
     return request;
