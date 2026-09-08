@@ -22,15 +22,21 @@ import 'dart:collection';
 /// @author WangHongEn
 class ExpiringCache<K, V> {
   final Duration duration;
+  final void Function(K key, V value)? onExpire;
   final _cache = <K, V>{};
   final _expirationTimes = <K, Timer>{};
 
-  ExpiringCache(this.duration);
+  ExpiringCache(this.duration, {this.onExpire});
 
   void set(K key, V value) {
     _expirationTimes[key]?.cancel();
     _cache[key] = value;
-    _expirationTimes[key] = Timer(duration, () => remove(key));
+    _expirationTimes[key] = Timer(duration, () {
+      final expired = remove(key);
+      if (expired != null) {
+        onExpire?.call(key, expired);
+      }
+    });
   }
 
   void operator []=(K key, V value) => set(key, value);

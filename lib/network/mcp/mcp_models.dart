@@ -25,7 +25,10 @@ Map<String, dynamic> toolArgsFrom(dynamic value) {
   if (value is Map) {
     return asStringKeyedMap(value);
   }
-  if (value is List && value.isNotEmpty) {
+  if (value is List) {
+    if (value.isEmpty) {
+      return <String, dynamic>{};
+    }
     final first = value.first;
     if (first is Map) {
       return asStringKeyedMap(first);

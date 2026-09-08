@@ -52,7 +52,12 @@ class McpJsonRpcHandler {
   }
 
   Future<dynamic> handleRaw(String body) async {
-    final decoded = jsonDecode(body);
+    late final dynamic decoded;
+    try {
+      decoded = jsonDecode(body);
+    } catch (_) {
+      return _error(null, -32700, 'Parse error');
+    }
     if (decoded is List) {
       final responses = <Map<String, dynamic>>[];
       for (final item in decoded) {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proxypin/network/bin/configuration.dart';
 import 'package:proxypin/network/bin/server.dart';
+import 'package:proxypin/network/components/request_breakpoint.dart';
 import 'package:proxypin/network/http/http.dart';
 import 'package:proxypin/network/mcp/mcp_models.dart';
 import 'package:proxypin/network/mcp/mcp_tools.dart';
@@ -83,6 +84,19 @@ void main() {
     final request = _request(url: 'https://example.com/a', requestId: 'keep-me');
     expect(request.copy().requestId, 'keep-me');
     expect(request.copy(uri: 'https://example.com/b').requestId, 'keep-me');
+  });
+
+  test('get_request_detail finds a request paused at breakpoint', () async {
+    final interceptor = RequestBreakpointInterceptor.instance;
+    interceptor.clearPausedForTest();
+    try {
+      final request = _request(url: 'https://example.com/paused', requestId: 'paused');
+      interceptor.registerPausedForTest(request);
+      final result = await _services(ListenableList<HttpRequest>()).getRequestDetail({'requestId': 'paused'});
+      expect(result['requestId'], 'paused');
+    } finally {
+      interceptor.clearPausedForTest();
+    }
   });
 
   test('get_request_detail missing id returns not_found', () async {

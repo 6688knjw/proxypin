@@ -101,6 +101,12 @@ void main() {
     expect(names, isNot(contains('execute_js')));
   });
 
+  test('invalid json returns parse error', () async {
+    final handler = McpJsonRpcHandler(_services().buildRegistry());
+    final response = await handler.handleRaw('{not-json');
+    expect(response['error']['code'], -32700);
+  });
+
   test('unknown method returns method not found', () async {
     final handler = McpJsonRpcHandler(_services().buildRegistry());
     final response = await handler.handle({
@@ -127,6 +133,41 @@ void main() {
     });
     expect(response!['error'], isNull);
     expect(response['result']['structuredContent']['requestId'], 'r1');
+  });
+
+  test('tools/call treats empty argument list as no args', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r0',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 7,
+      'method': 'tools/call',
+      'params': {'name': 'get_request_list', 'arguments': []},
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['total'], 1);
+  });
+
+  test('tools/call accepts arguments as a one-item list', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r3',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 6,
+      'method': 'tools/call',
+      'params': {
+        'name': 'get_request_detail',
+        'arguments': [
+          {'requestId': 'r3'}
+        ],
+      },
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['requestId'], 'r3');
   });
 
   test('tools/call accepts requestId as a raw argument string', () async {

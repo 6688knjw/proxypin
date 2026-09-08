@@ -581,11 +581,11 @@ class McpServices {
     }
     final manager = await RequestBreakpointManager.instance;
     final rule = RequestBreakpointRule(
-      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      enabled: _boolArg(args['enabled'], true),
       name: args['name']?.toString(),
       url: url,
-      interceptRequest: args['interceptRequest'] is bool ? args['interceptRequest'] as bool : true,
-      interceptResponse: args['interceptResponse'] is bool ? args['interceptResponse'] as bool : true,
+      interceptRequest: _boolArg(args['interceptRequest'], true),
+      interceptResponse: _boolArg(args['interceptResponse'], true),
       method: _optionalMethod(args['method']),
     );
     manager.add(rule);
@@ -633,7 +633,7 @@ class McpServices {
     }
     final interceptor = RequestBreakpointInterceptor.instance;
     final phase = (args['phase']?.toString() ?? '').toLowerCase();
-    final abort = args['abort'] == true;
+    final abort = _boolArg(args['abort'], false);
     final isRequest = phase == 'request' || (phase.isEmpty && interceptor.pendingRequestIds.contains(requestId));
     if (isRequest) {
       if (!interceptor.pendingRequestIds.contains(requestId)) {
@@ -658,12 +658,13 @@ class McpServices {
       return {'ok': true, 'phase': 'response', 'aborted': true};
     }
     final original = await _requireRequest({'requestId': requestId});
-    final response = original.response;
+    final response = original.response ?? interceptor.pausedResponse(requestId);
     if (response == null) {
       throw McpException.app('not_found', 'response not available');
     }
-    if (args['status'] is int) {
-      response.status = HttpStatus.valueOf(args['status'] as int);
+    final status = _intArg(args['status']);
+    if (status != null) {
+      response.status = HttpStatus.valueOf(status);
     }
     if (args['headers'] is Map) {
       response.headers.clear();
@@ -701,7 +702,7 @@ class McpServices {
     }
     final manager = await RequestRewriteManager.instance;
     final rule = RequestRewriteRule(
-      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      enabled: _boolArg(args['enabled'], true),
       name: args['name']?.toString(),
       url: url,
       type: type,
@@ -780,15 +781,15 @@ class McpServices {
     if (existing != null) {
       existing.urls = url.contains(',') ? url.split(',').map((e) => e.trim()).toList() : [url];
       existing.urlRegs = null;
-      if (args['enabled'] is bool) {
-        existing.enabled = args['enabled'] as bool;
+      if (args.containsKey('enabled')) {
+        existing.enabled = _boolArg(args['enabled'], existing.enabled);
       }
       await manager.updateScript(existing, script);
       await manager.flushConfig();
       auditLog.add('create_or_update_script', 'update $name');
       return {'ok': true, 'updated': true, 'name': name};
     }
-    final item = ScriptItem(args['enabled'] is bool ? args['enabled'] as bool : true, name, url);
+    final item = ScriptItem(_boolArg(args['enabled'], true), name, url);
     await manager.addScript(item, script);
     await manager.flushConfig();
     auditLog.add('create_or_update_script', 'create $name');
@@ -948,13 +949,12 @@ class McpServices {
   }
 
   Future<Map<String, dynamic>> getHistoryTraffic(Map<String, dynamic> args) async {
-    final historyId = args['historyId']?.toString();
-    if (historyId == null || historyId.isEmpty) {
+    final index = _intArg(args['historyId']);
+    if (index == null) {
       throw McpException.invalidParams('historyId is required');
     }
-    final index = int.tryParse(historyId);
     final storage = await _history();
-    if (storage == null || index == null || index < 0 || index >= storage.histories.length) {
+    if (storage == null || index < 0 || index >= storage.histories.length) {
       throw McpException.app('not_found', 'history record not found');
     }
     final item = storage.histories[index];
@@ -969,7 +969,7 @@ class McpServices {
         throw McpException.app('not_found', 'requestId not found');
       }
       return {
-        'historyId': historyId,
+        'historyId': '$index',
         'total': 1,
         'items': [trafficDetail(request, bodyLimit())],
       };
@@ -977,7 +977,7 @@ class McpServices {
     final matched = requests.where(filter.matches).toList();
     final sliced = _page(matched, filter.offset, filter.limit);
     return {
-      'historyId': historyId,
+      'historyId': '$index',
       'total': matched.length,
       'offset': filter.offset,
       'items': sliced.map((request) => trafficDetail(request, bodyLimit())).toList(),
@@ -1158,7 +1158,7 @@ class McpServices {
     final item = HostsItem(
       host: host,
       toAddress: toAddress,
-      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      enabled: _boolArg(args['enabled'], true),
     );
     await manager.addHosts(item);
     await manager.flushConfig();
@@ -1227,7 +1227,7 @@ class McpServices {
       }
     }
     final manager = await RequestBlockManager.instance;
-    final item = RequestBlockItem(args['enabled'] is bool ? args['enabled'] as bool : true, url, type);
+    final item = RequestBlockItem(_boolArg(args['enabled'], true), url, type);
     manager.addBlockRequest(item);
     auditLog.add('add_block_rule', '${type.name} $url');
     return {'ok': true, 'index': manager.list.length - 1, 'item': item.toJson()};
@@ -1271,7 +1271,7 @@ class McpServices {
     final type = (script != null && script.isNotEmpty) ? RequestMapType.script : RequestMapType.local;
     final manager = await RequestMapManager.instance;
     final rule = RequestMapRule(
-      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      enabled: _boolArg(args['enabled'], true),
       name: args['name']?.toString(),
       url: url,
       type: type,
@@ -1282,7 +1282,7 @@ class McpServices {
         : null;
     final item = RequestMapItem(
       script: script,
-      statusCode: args['statusCode'] is int ? args['statusCode'] as int : 200,
+      statusCode: _intArg(args['statusCode']) ?? 200,
       headers: headers,
       body: args['body']?.toString(),
     );
@@ -1329,15 +1329,15 @@ class McpServices {
       name: name,
       urlPattern: urlPattern,
       field: args['field']?.toString(),
-      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      enabled: _boolArg(args['enabled'], true),
       config: CryptoKeyConfig(
         key: key,
         iv: args['iv']?.toString() ?? '',
         ivSource: args['ivSource']?.toString() ?? 'manual',
-        ivPrefixLength: args['ivPrefixLength'] is int ? args['ivPrefixLength'] as int : 16,
+        ivPrefixLength: _intArg(args['ivPrefixLength']) ?? 16,
         mode: args['mode']?.toString() ?? 'ECB',
         padding: args['padding']?.toString() ?? 'PKCS7',
-        keyLength: args['keyLength'] is int ? args['keyLength'] as int : 128,
+        keyLength: _intArg(args['keyLength']) ?? 128,
       ),
     );
     await manager.addRule(rule);
@@ -1384,12 +1384,12 @@ class McpServices {
       throw McpException.invalidParams('unknown profileId');
     }
     final rule = NetworkConditionRule(
-      enabled: args['enabled'] is bool ? args['enabled'] as bool : true,
+      enabled: _boolArg(args['enabled'], true),
       url: url,
       profileId: profileId,
     );
     manager.rules.add(rule);
-    if (args['enableManager'] == true) {
+    if (_boolArg(args['enableManager'], false)) {
       manager.enabled = true;
     }
     await manager.flushConfig();
@@ -1437,7 +1437,7 @@ class McpServices {
       return {'ok': true, 'deleted': true, 'key': key, 'environment': env.id};
     }
     final value = args['value'].toString();
-    final enabled = args['enabled'] is bool ? args['enabled'] as bool : true;
+    final enabled = _boolArg(args['enabled'], true);
     var existing = false;
     for (final item in env.variables) {
       if (item.key == key) {
@@ -1502,8 +1502,8 @@ class McpServices {
   Future<Map<String, dynamic>> removeFavorite(Map<String, dynamic> args) async {
     final favorites = (await FavoriteStorage.favorites).toList();
     Favorite? removed;
-    if (args['index'] is int) {
-      final index = args['index'] as int;
+    final index = _intArg(args['index']);
+    if (index != null) {
       if (index >= 0 && index < favorites.length) {
         removed = favorites[index];
       }
@@ -1555,7 +1555,12 @@ class McpServices {
         return request;
       }
     }
-    return null;
+    final paused = RequestBreakpointInterceptor.instance.pausedRequest(wanted);
+    if (paused == null) {
+      return null;
+    }
+    paused.response ??= RequestBreakpointInterceptor.instance.pausedResponse(wanted);
+    return paused;
   }
 
   HttpRequest? _findInSessionByUrl(String requestId) {
@@ -1689,6 +1694,38 @@ class McpServices {
     return request;
   }
 
+  bool _boolArg(dynamic value, bool fallback) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final text = value.trim().toLowerCase();
+      if (text == 'true' || text == '1' || text == 'yes') {
+        return true;
+      }
+      if (text == 'false' || text == '0' || text == 'no') {
+        return false;
+      }
+    }
+    return fallback;
+  }
+
+  int? _intArg(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value.trim());
+    }
+    return null;
+  }
+
   HttpMethod? _optionalMethod(dynamic value) {
     if (value == null || value.toString().isEmpty) {
       return null;
@@ -1701,8 +1738,8 @@ class McpServices {
   }
 
   int? _findIndex(int length, Map<String, dynamic> args, bool Function(int index) matches) {
-    if (args['index'] is int) {
-      final index = args['index'] as int;
+    final index = _intArg(args['index']);
+    if (index != null) {
       if (index >= 0 && index < length) {
         return index;
       }
@@ -1718,7 +1755,7 @@ class McpServices {
 
   bool _matchNameOrUrl(Map<String, dynamic> args, {String? name, String? url}) {
     final wantName = args['name']?.toString();
-    final wantUrl = args['url']?.toString();
+    final wantUrl = args['url']?.toString() ?? args['urlPattern']?.toString();
     if (wantName != null && wantName.isNotEmpty && name == wantName) {
       return true;
     }
@@ -1729,8 +1766,8 @@ class McpServices {
   }
 
   ScriptItem? _findScript(ScriptManager manager, Map<String, dynamic> args) {
-    if (args['index'] is int) {
-      final index = args['index'] as int;
+    final index = _intArg(args['index']);
+    if (index != null) {
       if (index >= 0 && index < manager.list.length) {
         return manager.list[index];
       }
@@ -1766,8 +1803,9 @@ class McpServices {
         return items;
       case RuleType.responseReplace:
         final items = <RewriteItem>[];
-        if (args['statusCode'] is int) {
-          items.add(RewriteItem(RewriteType.replaceResponseStatus, true)..statusCode = args['statusCode'] as int);
+        final statusCode = _intArg(args['statusCode']);
+        if (statusCode != null) {
+          items.add(RewriteItem(RewriteType.replaceResponseStatus, true)..statusCode = statusCode);
         }
         if (args['headers'] is Map) {
           items.add(RewriteItem(RewriteType.replaceResponseHeader, true)
