@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - 260903-feat-android-mcp-server
       - 260905-feat-mcp-tools
+    tags:
+      - "v*"
 
 jobs:
   build:
