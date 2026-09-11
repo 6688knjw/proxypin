@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proxypin/network/bin/configuration.dart';
 import 'package:proxypin/network/bin/server.dart';
+import 'package:proxypin/network/components/manager/request_breakpoint_manager.dart';
+import 'package:proxypin/network/components/manager/request_crypto_manager.dart';
 import 'package:proxypin/network/components/request_breakpoint.dart';
 import 'package:proxypin/network/http/http.dart';
 import 'package:proxypin/network/mcp/mcp_models.dart';
@@ -40,6 +42,8 @@ McpServices _services(ListenableList<HttpRequest> session, {int bodyLimit = 6553
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('get_request_list filters and paginates current session', () async {
     final session = ListenableList<HttpRequest>([
       _request(url: 'https://example.com/api/users', method: HttpMethod.get, status: 200, requestId: 'r1'),
@@ -202,5 +206,97 @@ void main() {
     expect(result['total'], 1);
     expect(result['items'][0]['path'], '/api/users');
     expect(result['items'][0]['count'], 2);
+  });
+
+  test('add_breakpoint coerces string enabled and intercept flags', () async {
+    final services = _services(ListenableList<HttpRequest>());
+    Map<String, dynamic>? added;
+    try {
+      added = await services.addBreakpoint({
+        'url': 'https://mcp-test.example.com/bp',
+        'name': 'mcp-bool-arg',
+        'enabled': 'true',
+        'interceptRequest': '0',
+        'interceptResponse': 'yes',
+      });
+      expect(added['ok'], isTrue);
+      expect(added['rule']['enabled'], isTrue);
+      expect(added['rule']['interceptRequest'], isFalse);
+      expect(added['rule']['interceptResponse'], isTrue);
+    } finally {
+      if (added != null) {
+        await services.removeBreakpoint({'name': 'mcp-bool-arg'});
+      }
+    }
+  });
+
+  test('remove_breakpoint accepts string index', () async {
+    final services = _services(ListenableList<HttpRequest>());
+    final added = await services.addBreakpoint({
+      'url': 'https://mcp-test.example.com/idx',
+      'name': 'mcp-int-arg',
+    });
+    final removed = await services.removeBreakpoint({'index': '${added['index']}'});
+    expect(removed['ok'], isTrue);
+    expect(removed['removed']['name'], 'mcp-int-arg');
+  });
+
+  test('release_intercept resumes a paused request', () async {
+    final interceptor = RequestBreakpointInterceptor.instance;
+    interceptor.clearPausedForTest();
+    try {
+      final request = _request(url: 'https://example.com/paused', requestId: 'rel-1');
+      interceptor.registerPausedForTest(request);
+      final result = await _services(ListenableList([request])).releaseIntercept({'requestId': 'rel-1'});
+      expect(result['ok'], isTrue);
+      expect(result['phase'], 'request');
+      expect(interceptor.pendingRequestIds, isEmpty);
+    } finally {
+      interceptor.clearPausedForTest();
+    }
+  });
+
+  test('release_intercept abort accepts string true', () async {
+    final interceptor = RequestBreakpointInterceptor.instance;
+    interceptor.clearPausedForTest();
+    try {
+      final request = _request(url: 'https://example.com/paused', requestId: 'rel-2');
+      interceptor.registerPausedForTest(request);
+      final result = await _services(ListenableList([request])).releaseIntercept({
+        'requestId': 'rel-2',
+        'abort': 'true',
+      });
+      expect(result['ok'], isTrue);
+      expect(result['aborted'], isTrue);
+      expect(interceptor.pendingRequestIds, isEmpty);
+    } finally {
+      interceptor.clearPausedForTest();
+    }
+  });
+
+  test('release_intercept missing id returns not_found', () async {
+    expect(
+      () => _services(ListenableList<HttpRequest>()).releaseIntercept({'requestId': 'missing'}),
+      throwsA(isA<McpException>().having((e) => e.data?['code'], 'code', 'not_found')),
+    );
+  });
+
+  test('breakpoint url wildcards match like rewrite rules', () {
+    final rule = RequestBreakpointRule(url: 'https://api.example.com/*');
+    expect(rule.match('https://api.example.com/users'), isTrue);
+    expect(rule.match('https://api.example.com/users?id=1'), isTrue);
+    expect(rule.match('https://other.example.com/users'), isFalse);
+  });
+
+  test('crypto urlPattern wildcards match like rewrite rules', () {
+    final rule = CryptoRule(
+      name: 'aes',
+      urlPattern: 'https://api.example.com/*',
+      enabled: true,
+      config: CryptoKeyConfig.defaults(),
+    );
+    expect(rule.matches('https://api.example.com/users'), isTrue);
+    expect(rule.matches('https://api.example.com/users?id=1'), isTrue);
+    expect(rule.matches('https://other.example.com/users'), isFalse);
   });
 }

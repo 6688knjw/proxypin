@@ -19,6 +19,8 @@ McpServices _services({ListenableList<HttpRequest>? session, ProxyServer? server
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('initialize returns serverInfo and capabilities', () async {
     final handler = McpJsonRpcHandler(_services().buildRegistry());
     final response = await handler.handle({
