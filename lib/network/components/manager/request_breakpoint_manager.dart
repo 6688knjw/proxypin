@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:proxypin/network/http/http.dart';
-import 'package:proxypin/storage/path.dart';
 import 'package:proxypin/network/util/logger.dart';
+import 'package:proxypin/network/util/url_pattern.dart';
+import 'package:proxypin/storage/path.dart';
 
 class RequestBreakpointRule {
   bool enabled;
@@ -28,7 +29,11 @@ class RequestBreakpointRule {
   bool match(String url, {HttpMethod? method}) {
     if (!enabled) return false;
     if (this.method != null && method != null && this.method != method) return false;
-    return RegExp(this.url).hasMatch(url);
+    try {
+      return UrlPattern.toRegExp(this.url).hasMatch(url);
+    } catch (_) {
+      return false;
+    }
   }
 
   factory RequestBreakpointRule.fromJson(Map<dynamic, dynamic> map) {

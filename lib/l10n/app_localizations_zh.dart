@@ -1251,6 +1251,77 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mcpAuditEmpty => '暂无 MCP 操作记录';
+
+  @override
+  String get mcpHint => '开启后，同一局域网的 AI 客户端可读取抓包流量';
+
+  @override
+  String get mcpCopyUrl => '复制地址';
+
+  @override
+  String get mcpCopyJson => '复制客户端 JSON';
+
+  @override
+  String get mcpPortRestart => '正在运行时保存后立即生效';
+
+  @override
+  String get mcpAutoStart => '随应用启动';
+
+  @override
+  String get mcpAutoStartHint => '下次打开应用时自动启动 MCP';
+
+  @override
+  String get mcpLocalAddress => '本地地址';
+
+  @override
+  String get mcpLanAddress => '局域网地址';
+
+  @override
+  String get mcpRegenerateConfirm => '当前令牌会立即失效，确定重新生成？';
+
+  @override
+  String get mcpLanHint => '同一 Wi-Fi 下的电脑可连接';
+
+  @override
+  String get mcpCopyConfigHint => 'URL + Bearer Token';
+
+  @override
+  String get mcpCopyJsonHint => 'Cursor / Claude / OpenCode';
+
+  @override
+  String get mcpHideToken => '隐藏令牌';
+
+  @override
+  String get mcpShowToken => '显示令牌';
+
+  @override
+  String get mcpTokenInvalidateHint => '旧令牌会立即失效';
+
+  @override
+  String get mcpBodyLimitHint => '单条请求/响应正文截断字节数';
+
+  @override
+  String mcpClientsConnected(Object count, Object url) {
+    return '$count 个客户端已连接 · $url';
+  }
+
+  @override
+  String get mcpSseEnabled => 'SSE 连接';
+
+  @override
+  String get mcpSseEnabledHint => '保持 GET /mcp 与 /sse 长连接，供 Streamable HTTP / SSE 客户端使用';
+
+  @override
+  String get mcpAuthEnabled => '启用访问令牌';
+
+  @override
+  String get mcpAuthEnabledHint => '客户端需携带 Authorization: Bearer';
+
+  @override
+  String get mcpSseLocalAddress => 'SSE 本地地址';
+
+  @override
+  String get mcpSseLanAddress => 'SSE 局域网地址';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2436,4 +2507,75 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mcpAuditEmpty => '尚無 MCP 操作紀錄';
+
+  @override
+  String get mcpHint => '開啟後，同一區域網路的 AI 用戶端可讀取抓包流量';
+
+  @override
+  String get mcpCopyUrl => '複製位址';
+
+  @override
+  String get mcpCopyJson => '複製用戶端 JSON';
+
+  @override
+  String get mcpPortRestart => '正在執行時儲存後立即生效';
+
+  @override
+  String get mcpAutoStart => '隨應用啟動';
+
+  @override
+  String get mcpAutoStartHint => '下次開啟應用時自動啟動 MCP';
+
+  @override
+  String get mcpLocalAddress => '本地位址';
+
+  @override
+  String get mcpLanAddress => '區域網路位址';
+
+  @override
+  String get mcpRegenerateConfirm => '目前權杖會立即失效，確定重新產生？';
+
+  @override
+  String get mcpLanHint => '同一 Wi-Fi 下的電腦可連線';
+
+  @override
+  String get mcpCopyConfigHint => 'URL + Bearer Token';
+
+  @override
+  String get mcpCopyJsonHint => 'Cursor / Claude / OpenCode';
+
+  @override
+  String get mcpHideToken => '隱藏權杖';
+
+  @override
+  String get mcpShowToken => '顯示權杖';
+
+  @override
+  String get mcpTokenInvalidateHint => '舊權杖會立即失效';
+
+  @override
+  String get mcpBodyLimitHint => '單筆請求/回應正文截斷位元組數';
+
+  @override
+  String mcpClientsConnected(Object count, Object url) {
+    return '$count 個用戶端已連線 · $url';
+  }
+
+  @override
+  String get mcpSseEnabled => 'SSE 連線';
+
+  @override
+  String get mcpSseEnabledHint => '保持 GET /mcp 與 /sse 長連線，供 Streamable HTTP / SSE 用戶端使用';
+
+  @override
+  String get mcpAuthEnabled => '啟用存取權杖';
+
+  @override
+  String get mcpAuthEnabledHint => '用戶端需攜帶 Authorization: Bearer';
+
+  @override
+  String get mcpSseLocalAddress => 'SSE 本地位址';
+
+  @override
+  String get mcpSseLanAddress => 'SSE 區域網路位址';
 }

@@ -19,6 +19,8 @@ McpServices _services({ListenableList<HttpRequest>? session, ProxyServer? server
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('initialize returns serverInfo and capabilities', () async {
     final handler = McpJsonRpcHandler(_services().buildRegistry());
     final response = await handler.handle({
@@ -39,10 +41,72 @@ void main() {
       'method': 'tools/list',
     });
     final names = (response!['result']['tools'] as List).map((tool) => tool['name']).toList();
-    expect(names, containsAll(['list_traffic', 'get_traffic', 'send_request', 'replay_request', 'list_rules']));
+    const expected = [
+      'get_request_list',
+      'get_request_detail',
+      'get_request_stats',
+      'get_domain_summary',
+      'get_cookie_info',
+      'compare_requests',
+      'analyze_encrypted_content',
+      'replay_request',
+      'generate_code',
+      'add_breakpoint',
+      'remove_breakpoint',
+      'list_breakpoints',
+      'get_pending_intercepts',
+      'release_intercept',
+      'list_rewrite_rules',
+      'add_rewrite_rule',
+      'remove_rewrite_rule',
+      'list_scripts',
+      'get_script_content',
+      'create_or_update_script',
+      'find_sensitive_data',
+      'analyze_auth',
+      'extract_api_endpoints',
+      'export_har',
+      'import_har',
+    ];
+    expect(names, containsAll(expected));
+    expect(names, containsAll([
+      'send_request',
+      'replay_request',
+      'list_rules',
+      'list_hosts',
+      'add_host',
+      'remove_host',
+      'list_block_rules',
+      'add_block_rule',
+      'remove_block_rule',
+      'list_map_rules',
+      'add_map_rule',
+      'remove_map_rule',
+      'list_crypto_rules',
+      'add_crypto_rule',
+      'remove_crypto_rule',
+      'list_network_conditions',
+      'add_network_condition_rule',
+      'remove_network_condition_rule',
+      'list_environments',
+      'set_environment_variable',
+      'set_active_environment',
+      'list_favorites',
+      'add_favorite',
+      'remove_favorite',
+    ]));
+    expect(names, isNot(contains('list_traffic')));
+    expect(names, isNot(contains('get_traffic')));
+    expect(names, isNot(contains('search_requests')));
+    expect(names, isNot(contains('get_request_body')));
     expect(names, isNot(contains('execute_python')));
     expect(names, isNot(contains('execute_js')));
-    expect(names, isNot(contains('update_rule')));
+  });
+
+  test('invalid json returns parse error', () async {
+    final handler = McpJsonRpcHandler(_services().buildRegistry());
+    final response = await handler.handleRaw('{not-json');
+    expect(response['error']['code'], -32700);
   });
 
   test('unknown method returns method not found', () async {
@@ -55,11 +119,81 @@ void main() {
     expect(response!['error']['code'], -32601);
   });
 
+  test('tools/call accepts non-String map arguments', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r1',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 4,
+      'method': 'tools/call',
+      'params': <dynamic, dynamic>{
+        'name': 'get_request_detail',
+        'arguments': <dynamic, dynamic>{'requestId': 'r1'},
+      },
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['requestId'], 'r1');
+  });
+
+  test('tools/call treats empty argument list as no args', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r0',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 7,
+      'method': 'tools/call',
+      'params': {'name': 'get_request_list', 'arguments': []},
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['total'], 1);
+  });
+
+  test('tools/call accepts arguments as a one-item list', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r3',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 6,
+      'method': 'tools/call',
+      'params': {
+        'name': 'get_request_detail',
+        'arguments': [
+          {'requestId': 'r3'}
+        ],
+      },
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['requestId'], 'r3');
+  });
+
+  test('tools/call accepts requestId as a raw argument string', () async {
+    final session = ListenableList<HttpRequest>([
+      HttpRequest(HttpMethod.get, 'https://example.com/a')..requestId = 'r2',
+    ]);
+    final handler = McpJsonRpcHandler(_services(session: session).buildRegistry());
+    final response = await handler.handle({
+      'jsonrpc': '2.0',
+      'id': 5,
+      'method': 'tools/call',
+      'params': {'name': 'get_request_detail', 'arguments': 'r2'},
+    });
+    expect(response!['error'], isNull);
+    expect(response['result']['structuredContent']['requestId'], 'r2');
+  });
+
   test('auth helper rejects missing or wrong token', () {
     expect(mcpTokenMatches('secret'), isFalse);
     expect(mcpTokenMatches('secret', authorization: 'Bearer wrong'), isFalse);
     expect(mcpTokenMatches('secret', authorization: 'Bearer secret'), isTrue);
     expect(mcpTokenMatches('secret', queryToken: 'secret'), isTrue);
     expect(mcpTokenMatches(''), isFalse);
+    expect(mcpTokenMatches('secret', required: false), isTrue);
+    expect(mcpTokenMatches('', required: false), isTrue);
   });
 }

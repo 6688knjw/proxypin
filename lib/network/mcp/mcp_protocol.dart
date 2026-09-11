@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:proxypin/network/mcp/mcp_models.dart';
 import 'package:proxypin/network/mcp/mcp_tools.dart';
 
-bool mcpTokenMatches(String expected, {String? authorization, String? queryToken}) {
+bool mcpTokenMatches(String expected, {bool required = true, String? authorization, String? queryToken}) {
+  if (!required) {
+    return true;
+  }
   if (expected.isEmpty) {
     return false;
   }
@@ -49,27 +52,34 @@ class McpJsonRpcHandler {
   }
 
   Future<dynamic> handleRaw(String body) async {
-    final decoded = jsonDecode(body);
+    late final dynamic decoded;
+    try {
+      decoded = jsonDecode(body);
+    } catch (_) {
+      return _error(null, -32700, 'Parse error');
+    }
     if (decoded is List) {
       final responses = <Map<String, dynamic>>[];
       for (final item in decoded) {
-        if (item is Map<String, dynamic>) {
-          final response = await handle(item);
-          if (response != null) {
-            responses.add(response);
-          }
+        final message = asStringKeyedMap(item);
+        if (message.isEmpty && item is! Map) {
+          continue;
+        }
+        final response = await handle(message);
+        if (response != null) {
+          responses.add(response);
         }
       }
       return responses;
     }
-    if (decoded is Map<String, dynamic>) {
-      return handle(decoded);
+    if (decoded is Map) {
+      return handle(asStringKeyedMap(decoded));
     }
     return _error(null, -32700, 'Parse error');
   }
 
   Future<Map<String, dynamic>> _dispatch(String method, dynamic params) async {
-    final args = params is Map<String, dynamic> ? params : <String, dynamic>{};
+    final args = asStringKeyedMap(params);
     switch (method) {
       case 'initialize':
         return {
@@ -91,10 +101,7 @@ class McpJsonRpcHandler {
         if (name == null || name.isEmpty) {
           throw McpException.invalidParams('tool name is required');
         }
-        final toolArgs = args['arguments'] is Map<String, dynamic>
-            ? args['arguments'] as Map<String, dynamic>
-            : <String, dynamic>{};
-        final result = await registry.call(name, toolArgs);
+        final result = await registry.call(name, toolArgsFrom(args['arguments']));
         return {
           'content': [
             {'type': 'text', 'text': jsonEncode(result)}
@@ -119,7 +126,7 @@ class McpJsonRpcHandler {
       case 'resources/read':
         final uri = args['uri']?.toString();
         if (uri == 'proxypin://traffic') {
-          final result = await registry.call('list_traffic', {'limit': 50});
+          final result = await registry.call('get_request_list', {'limit': 50});
           return {
             'contents': [
               {'uri': uri, 'mimeType': 'application/json', 'text': jsonEncode(result)}

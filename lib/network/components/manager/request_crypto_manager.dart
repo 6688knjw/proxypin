@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:proxypin/network/http/http.dart';
 import 'package:proxypin/network/util/file_read.dart';
 import 'package:proxypin/network/util/logger.dart';
+import 'package:proxypin/network/util/url_pattern.dart';
 
 class RequestCryptoManager {
   static String separator = Platform.pathSeparator;
@@ -135,7 +136,7 @@ class CryptoRule {
 
   bool matches(String url) {
     try {
-      return RegExp(urlPattern).hasMatch(url);
+      return UrlPattern.toRegExp(urlPattern).hasMatch(url);
     } catch (_) {
       return url.contains(urlPattern);
     }

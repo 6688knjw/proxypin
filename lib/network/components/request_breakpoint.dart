@@ -11,15 +11,40 @@ import 'package:proxypin/ui/component/multi_window.dart';
 
 import '../http/http_headers.dart';
 
+class _PausedRequest {
+  final Completer<HttpRequest?> completer;
+  final HttpRequest request;
+
+  _PausedRequest(this.completer, this.request);
+}
+
+class _PausedResponse {
+  final Completer<HttpResponse?> completer;
+  final HttpResponse response;
+
+  _PausedResponse(this.completer, this.response);
+}
+
 class RequestBreakpointInterceptor extends Interceptor {
   static RequestBreakpointInterceptor instance = RequestBreakpointInterceptor._();
 
   final manager = RequestBreakpointManager.instance;
 
-  final ExpiringCache<String, Completer<HttpRequest?>> _pausedRequests = ExpiringCache(Duration(minutes: 10));
-  final ExpiringCache<String, Completer<HttpResponse?>> _pausedResponses = ExpiringCache(Duration(minutes: 10));
+  late final ExpiringCache<String, _PausedRequest> _pausedRequests;
+  late final ExpiringCache<String, _PausedResponse> _pausedResponses;
 
-  RequestBreakpointInterceptor._();
+  RequestBreakpointInterceptor._() {
+    _pausedRequests = ExpiringCache(Duration(minutes: 10), onExpire: (_, paused) {
+      if (!paused.completer.isCompleted) {
+        paused.completer.complete(null);
+      }
+    });
+    _pausedResponses = ExpiringCache(Duration(minutes: 10), onExpire: (_, paused) {
+      if (!paused.completer.isCompleted) {
+        paused.completer.complete(null);
+      }
+    });
+  }
 
   /// 用环境变量渲染 {{name}}。若 EnvironmentManager 未加载或未启用,返回原字符串。
   static String? _renderEnv(String? input) => EnvironmentManager.tryRender(input);
@@ -93,7 +118,7 @@ class RequestBreakpointInterceptor extends Interceptor {
     for (var rule in requestBreakpointManager.list) {
       if (rule.match(url, method: request.method) && rule.interceptRequest) {
         Completer<HttpRequest?> completer = Completer();
-        _pausedRequests[request.requestId] = completer;
+        _pausedRequests[request.requestId] = _PausedRequest(completer, request);
 
         // Open Breakpoint Executor Window
         MultiWindow.openWindow("Breakpoint - Request", 'BreakpointExecutor',
@@ -138,7 +163,7 @@ class RequestBreakpointInterceptor extends Interceptor {
     for (var rule in requestBreakpointManager.list) {
       if (rule.match(url, method: request.method) && rule.interceptResponse) {
         Completer<HttpResponse?> completer = Completer();
-        _pausedResponses[request.requestId] = completer;
+        _pausedResponses[request.requestId] = _PausedResponse(completer, response);
 
         // Open Breakpoint Executor Window
         MultiWindow.openWindow("Breakpoint - Response", 'BreakpointExecutor', args: {
@@ -169,15 +194,42 @@ class RequestBreakpointInterceptor extends Interceptor {
     return response;
   }
 
+  List<String> get pendingRequestIds => _pausedRequests.keys.map((id) => id.toString()).toList();
+
+  List<String> get pendingResponseIds => _pausedResponses.keys.map((id) => id.toString()).toList();
+
+  HttpRequest? pausedRequest(String requestId) => _pausedRequests.get(requestId)?.request;
+
+  HttpResponse? pausedResponse(String requestId) => _pausedResponses.get(requestId)?.response;
+
+  void registerPausedForTest(HttpRequest request, {HttpResponse? response}) {
+    _pausedRequests[request.requestId] = _PausedRequest(Completer<HttpRequest?>(), request);
+    if (response != null) {
+      request.response = response;
+      _pausedResponses[request.requestId] = _PausedResponse(Completer<HttpResponse?>(), response);
+    }
+  }
+
+  void clearPausedForTest() {
+    for (final paused in _pausedRequests.keys.toList()) {
+      resumeRequest(paused, null);
+    }
+    for (final paused in _pausedResponses.keys.toList()) {
+      resumeResponse(paused, null);
+    }
+  }
+
   void resumeRequest(String requestId, HttpRequest? request) {
-    if (_pausedRequests.containsKey(requestId)) {
-      _pausedRequests.remove(requestId)?.complete(request);
+    final paused = _pausedRequests.remove(requestId);
+    if (paused != null && !paused.completer.isCompleted) {
+      paused.completer.complete(request);
     }
   }
 
   void resumeResponse(String requestId, HttpResponse? response) {
-    if (_pausedResponses.containsKey(requestId)) {
-      _pausedResponses.remove(requestId)?.complete(response);
+    final paused = _pausedResponses.remove(requestId);
+    if (paused != null && !paused.completer.isCompleted) {
+      paused.completer.complete(response);
     }
   }
 }

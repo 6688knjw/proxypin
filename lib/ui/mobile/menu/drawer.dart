@@ -181,6 +181,11 @@ class DrawerWidget extends StatelessWidget {
                 title: Text(localizations.environmentVariables),
                 leading: const Icon(Icons.public),
                 onTap: () => navigator(context, const MobileEnvironmentPage())),
+            if (Platform.isAndroid)
+              ListTile(
+                  title: Text(localizations.mcpServer),
+                  leading: const Icon(Icons.hub_outlined),
+                  onTap: () => navigator(context, MobileMcpWidget(proxyServer: proxyServer))),
             ListTile(
                 title: Text(localizations.setting),
                 leading: const Icon(Icons.settings),

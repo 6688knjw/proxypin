@@ -1264,6 +1264,77 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get mcpAuditEmpty => 'No MCP actions yet';
+
+  @override
+  String get mcpHint => 'Turn on MCP so LAN AI clients can inspect captured traffic';
+
+  @override
+  String get mcpCopyUrl => 'Copy URL';
+
+  @override
+  String get mcpCopyJson => 'Copy client JSON';
+
+  @override
+  String get mcpPortRestart => 'Applies immediately if MCP is running';
+
+  @override
+  String get mcpAutoStart => 'Start with app';
+
+  @override
+  String get mcpAutoStartHint => 'Start MCP the next time the app launches';
+
+  @override
+  String get mcpLocalAddress => 'Local address';
+
+  @override
+  String get mcpLanAddress => 'LAN address';
+
+  @override
+  String get mcpRegenerateConfirm => 'The current token will stop working immediately. Continue?';
+
+  @override
+  String get mcpLanHint => 'Computers on the same Wi-Fi can connect';
+
+  @override
+  String get mcpCopyConfigHint => 'URL + Bearer Token';
+
+  @override
+  String get mcpCopyJsonHint => 'Cursor / Claude / OpenCode';
+
+  @override
+  String get mcpHideToken => 'Hide token';
+
+  @override
+  String get mcpShowToken => 'Show token';
+
+  @override
+  String get mcpTokenInvalidateHint => 'The old token stops working immediately';
+
+  @override
+  String get mcpBodyLimitHint => 'Truncate each request/response body';
+
+  @override
+  String mcpClientsConnected(Object count, Object url) {
+    return '$count client(s) · $url';
+  }
+
+  @override
+  String get mcpSseEnabled => 'SSE connection';
+
+  @override
+  String get mcpSseEnabledHint => 'Keep GET /mcp and /sse open for Streamable HTTP / SSE clients';
+
+  @override
+  String get mcpAuthEnabled => 'Require access token';
+
+  @override
+  String get mcpAuthEnabledHint => 'Clients must send Authorization: Bearer';
+
+  @override
+  String get mcpSseLocalAddress => 'SSE local address';
+
+  @override
+  String get mcpSseLanAddress => 'SSE LAN address';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
