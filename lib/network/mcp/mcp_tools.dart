@@ -175,8 +175,9 @@ class McpServices {
       },
     }, removeBreakpoint);
     add('list_breakpoints', 'List breakpoint rules.', {'type': 'object', 'properties': {}}, listBreakpoints);
-    add('get_pending_intercepts', 'List requests/responses paused at breakpoints.', {'type': 'object', 'properties': {}},
-        getPendingIntercepts);
+    add('get_pending_intercepts',
+        'List requests/responses paused at breakpoints, including method, url and status summaries.',
+        {'type': 'object', 'properties': {}}, getPendingIntercepts);
     add('release_intercept', 'Resume a paused breakpoint intercept.', {
       'type': 'object',
       'properties': {
@@ -620,9 +621,35 @@ class McpServices {
 
   Future<Map<String, dynamic>> getPendingIntercepts(Map<String, dynamic> args) async {
     final interceptor = RequestBreakpointInterceptor.instance;
+    final requestIds = interceptor.pendingRequestIds;
+    final responseIds = interceptor.pendingResponseIds;
+    final items = <Map<String, dynamic>>[];
+    for (final id in requestIds) {
+      final request = interceptor.pausedRequest(id);
+      if (request == null) {
+        items.add({'requestId': id, 'phase': 'request'});
+        continue;
+      }
+      items.add({...trafficSummary(request), 'phase': 'request'});
+    }
+    for (final id in responseIds) {
+      final response = interceptor.pausedResponse(id);
+      final request = interceptor.pausedRequest(id) ?? response?.request;
+      if (request == null) {
+        items.add({
+          'requestId': id,
+          'phase': 'response',
+          'status': response?.status.code,
+        });
+        continue;
+      }
+      request.response ??= response;
+      items.add({...trafficSummary(request), 'phase': 'response'});
+    }
     return {
-      'requests': interceptor.pendingRequestIds,
-      'responses': interceptor.pendingResponseIds,
+      'requests': requestIds,
+      'responses': responseIds,
+      'items': items,
     };
   }
 

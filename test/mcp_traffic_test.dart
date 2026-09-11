@@ -241,6 +241,32 @@ void main() {
     expect(removed['removed']['name'], 'mcp-int-arg');
   });
 
+  test('get_pending_intercepts includes traffic summaries', () async {
+    final interceptor = RequestBreakpointInterceptor.instance;
+    interceptor.clearPausedForTest();
+    try {
+      final request = _request(url: 'https://example.com/paused', method: HttpMethod.post, requestId: 'pend-1');
+      final response = _request(url: 'https://example.com/done', status: 204, requestId: 'pend-2');
+      interceptor.registerPausedForTest(request);
+      interceptor.registerPausedForTest(response, response: response.response);
+      interceptor.resumeRequest('pend-2', null);
+      final result = await _services(ListenableList<HttpRequest>()).getPendingIntercepts({});
+      expect(result['requests'], ['pend-1']);
+      expect(result['responses'], ['pend-2']);
+      final items = (result['items'] as List).cast<Map>();
+      final pendingRequest = items.firstWhere((item) => item['requestId'] == 'pend-1');
+      expect(pendingRequest['phase'], 'request');
+      expect(pendingRequest['method'], 'POST');
+      expect(pendingRequest['url'], 'https://example.com/paused');
+      final pendingResponse = items.firstWhere((item) => item['requestId'] == 'pend-2');
+      expect(pendingResponse['phase'], 'response');
+      expect(pendingResponse['status'], 204);
+      expect(pendingResponse['url'], 'https://example.com/done');
+    } finally {
+      interceptor.clearPausedForTest();
+    }
+  });
+
   test('release_intercept resumes a paused request', () async {
     final interceptor = RequestBreakpointInterceptor.instance;
     interceptor.clearPausedForTest();
