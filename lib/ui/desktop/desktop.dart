@@ -106,7 +106,7 @@ class _DesktopHomePagePageState extends State<DesktopHomePage> implements EventL
       }
     });
 
-    if (widget.appConfiguration.upgradeNoticeV30) {
+    if (widget.appConfiguration.upgradeNoticeV31) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         showUpgradeNotice();
       });
@@ -181,7 +181,7 @@ class _DesktopHomePagePageState extends State<DesktopHomePage> implements EventL
               actions: [
                 TextButton(
                     onPressed: () {
-                      widget.appConfiguration.upgradeNoticeV30 = false;
+                      widget.appConfiguration.upgradeNoticeV31 = false;
                       widget.appConfiguration.flushConfig();
                       Navigator.pop(context);
                     },
@@ -195,22 +195,20 @@ class _DesktopHomePagePageState extends State<DesktopHomePage> implements EventL
                       isCN
                           ? '提示：默认不会开启HTTPS抓包，请安装证书后再开启HTTPS抓包。\n'
                               '点击HTTPS抓包(加锁图标)，选择安装根证书，按照提示操作即可。\n\n'
-                              '1. 新增弱网模拟功能，支持自定义延迟、丢包、带宽限制等网络条件；\n'
-                              '2. 新增环境变量高亮，URL 和 Headers 支持环境变量渲染与颜色区分；\n'
-                              '3. 新增 GraphQL 操作名称识别与展示；\n'
-                              '4. 新增请求重写规则检测，Body 视图中标识匹配的重写规则；\n'
-                              '5. 增强 HTTP/2：实现大体积 Body 流式传输，优化 Header 编解码，新增分块传输解码与统一 Body 读取逻辑；\n'
-                              '6. 增强 cURL 生成：改进 multipart/form-data 和二进制 Body 的导出；\n'
-                              '7. 修复：Android VPN 网络切换导致抓包中断、WebSocket 多帧合并丢失、Socket 连接异常关闭、裸域名请求 URI 为空等问题。\n'
+                              '1. Android 新增 MCP 服务：同一 Wi-Fi 下的电脑 AI 可读取抓包流量、改配置页规则、查看并放行断点；\n'
+                              '2. MCP 支持 Streamable HTTP 与 SSE，访问令牌可开关；当前启用与随应用启动分开控制；\n'
+                              '3. 断点与加解密 URL 使用与重写/映射相同的 * 通配符；待处理列表直接给出 method / URL / 状态；\n'
+                              '4. 修复请求详情 not_found、字符串参数解析、空 arguments；\n'
+                              '5. 正式 Android APK 使用固定签名，之后可覆盖安装；\n'
+                              '6. 修复 HTTP 请求默认 User-Agent 版本号，以及空 URL 发送崩溃。\n'
                           : 'Note: HTTPS capture is disabled by default — please install the certificate before enabling HTTPS capture.\n'
                               'Click the HTTPS capture (lock) icon, choose "Install Root Certificate", and follow the prompts to complete installation.\n\n'
-                              '1. Added weak network simulation with customizable latency, packet loss, and bandwidth throttling;\n'
-                              '2. Added environment variable highlighting with color-coded variable rendering in URLs and headers;\n'
-                              '3. Added GraphQL operation name recognition and display;\n'
-                              '4. Added request rewrite rule detection with rule matching indicators in the Body view;\n'
-                              '5. Enhanced HTTP/2: streaming for large bodies, improved header handling, chunked transfer decoding and unified body reading;\n'
-                              '6. Enhanced cURL generation: better multipart/form-data and binary body export;\n'
-                              '7. Fixed: Android VPN capture interruption on network switch, WebSocket frame merging loss, socket hang-up, empty URI for bare domains, and more.\n',
+                              '1. Android MCP server: LAN AI clients can inspect captured traffic, mutate config-page rules, and resume breakpoints;\n'
+                              '2. MCP supports Streamable HTTP and SSE, with optional auth token; current enable is separate from auto-start;\n'
+                              '3. Breakpoint and crypto URLs use the same * wildcards as rewrite/map; pending intercepts include method / URL / status;\n'
+                              '4. Fixed request detail not_found, string tool args, and empty arguments;\n'
+                              '5. Signed Android APK uses a fixed keystore so later installs can overwrite;\n'
+                              '6. Fixed HTTP request User-Agent version and empty-URL send crash.\n',
                       style: const TextStyle(fontSize: 14))));
         });
   }

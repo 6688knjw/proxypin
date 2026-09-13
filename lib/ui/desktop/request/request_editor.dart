@@ -255,7 +255,11 @@ class RequestEditorState extends State<RequestEditor> {
     var currentState = requestLineKey.currentState!;
     var headers = requestKey.currentState?.getHeaders();
     var requestBody = requestKey.currentState?.getBody();
-    String url = _renderEnv(currentState.requestUrl.text);
+    String url = _renderEnv(currentState.requestUrl.text).trim();
+    if (!_isValidRequestUrl(url)) {
+      if (mounted) FlutterToastr.show(localizations.fail, context);
+      return;
+    }
     _renderHeadersInPlace(headers);
     HttpRequest request = HttpRequest(currentState.requestMethod, Uri.parse(url).toString(),
         protocolVersion: this.request?.protocolVersion ?? "HTTP/1.1");
@@ -308,6 +312,11 @@ class RequestEditorState extends State<RequestEditor> {
       newResponse.body = responseBody == null ? null : utf8.encode(_renderEnv(responseBody));
       widget.onExecuteResponse?.call(newResponse);
     }
+  }
+
+  static bool _isValidRequestUrl(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && uri.hasScheme && uri.host.isNotEmpty;
   }
 
   /// 用当前激活的环境变量渲染 `{{name}}`。EnvironmentManager 未加载或未启用时返回原值。
@@ -510,7 +519,7 @@ class _HttpState extends State<_HttpWidget> {
     for (final entry in _bodyLanguageToContentType.entries) {
       if (entry.value == ct) return entry.key;
     }
-    return _BodyLanguage.json;
+    return _BodyLanguage.text;
   }
 
   @override
@@ -533,24 +542,31 @@ class _HttpState extends State<_HttpWidget> {
                         title: widget.title,
                         bottom: TabBar(tabs: tabs.map((e) => Tab(text: e, height: 35)).toList()),
                       )),
-                  body: Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: TabBarView(
-                        children: [
-                          if (tabs.length == 3)
-                            KeyValWidget(
-                                paramNotifier: widget.urlQueryNotifier,
-                                params: message is HttpRequest
-                                    ? (message as HttpRequest).requestUri?.queryParametersAll
-                                    : null),
-                          KeyValWidget(
-                              key: headerKey,
-                              params: message?.headers.getHeaders() ?? initHeader,
-                              readOnly: widget.readOnly,
-                              suggestions: HttpHeaders.commonHeaderKeys),
-                          _body()
-                        ],
-                      )),
+                      body: Padding(
+                          padding: const EdgeInsets.only(left: 10),
+                          child: Builder(builder: (context) {
+                            final tabController = DefaultTabController.of(context);
+                            return AnimatedBuilder(
+                              animation: tabController,
+                              builder: (_, __) => IndexedStack(
+                                index: tabController.index,
+                                children: [
+                                  if (tabs.length == 3)
+                                    KeyValWidget(
+                                        paramNotifier: widget.urlQueryNotifier,
+                                        params: message is HttpRequest
+                                            ? (message as HttpRequest).requestUri?.queryParametersAll
+                                            : null),
+                                  KeyValWidget(
+                                      key: headerKey,
+                                      params: message?.headers.getHeaders() ?? initHeader,
+                                      readOnly: widget.readOnly,
+                                      suggestions: HttpHeaders.commonHeaderKeys),
+                                  _body()
+                                ],
+                              ),
+                            );
+                          })),
                 ))));
   }
 

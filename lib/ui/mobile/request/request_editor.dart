@@ -246,7 +246,11 @@ class RequestEditorState extends State<MobileRequestEditor> with SingleTickerPro
     var currentState = requestLineKey.currentState!;
     var headers = requestKey.currentState?.getHeaders();
     var requestBody = requestKey.currentState?.getBody();
-    String url = _renderEnv(currentState.requestUrl.text);
+    String url = _renderEnv(currentState.requestUrl.text).trim();
+    if (!_isValidRequestUrl(url)) {
+      FlutterToastr.show(localizations.fail, context);
+      return;
+    }
     _renderHeadersInPlace(headers);
 
     HttpRequest request = HttpRequest(currentState.requestMethod, Uri.parse(url).toString(),
@@ -269,7 +273,7 @@ class RequestEditorState extends State<MobileRequestEditor> with SingleTickerPro
       // FlutterToastr.show(localizations.requestSuccess, context);
     }).catchError((e) {
       responseChange.value = -1;
-      FlutterToastr.show('${localizations.fail}$e', context);
+      if (mounted) FlutterToastr.show('${localizations.fail}$e', context);
     });
 
     tabController.animateTo(1);
@@ -302,6 +306,11 @@ class RequestEditorState extends State<MobileRequestEditor> with SingleTickerPro
       newResponse.body = responseBody == null ? null : utf8.encode(_renderEnv(responseBody));
       widget.onExecuteResponse?.call(newResponse);
     }
+  }
+
+  static bool _isValidRequestUrl(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && uri.hasScheme && uri.host.isNotEmpty;
   }
 
   /// 用当前激活的环境变量渲染 `{{name}}`。EnvironmentManager 未加载或未启用时返回原值。
@@ -469,7 +478,7 @@ class _HttpState extends State<_HttpWidget> with SingleTickerProviderStateMixin,
     for (final entry in _bodyLanguageToContentType.entries) {
       if (entry.value == ct) return entry.key;
     }
-    return _BodyLanguage.json;
+    return _BodyLanguage.text;
   }
 
   @override
@@ -752,7 +761,6 @@ class _RequestLineState extends State<_RequestLine> {
 
   @override
   Widget build(BuildContext context) {
-    TextInput;
     return TextField(
         style: const TextStyle(fontSize: 14),
         minLines: 1,
