@@ -23,6 +23,7 @@ import 'package:flutter_toastr/flutter_toastr.dart';
 import 'package:proxypin/l10n/app_localizations.dart';
 import 'package:proxypin/native/native_method.dart';
 import 'package:proxypin/network/bin/server.dart';
+import 'package:proxypin/network/ecapture/service.dart';
 import 'package:proxypin/network/util/cert/cert_data.dart';
 import 'package:proxypin/network/util/crts.dart';
 import 'package:proxypin/network/util/logger.dart';
@@ -120,6 +121,25 @@ class _MobileSslState extends State<MobileSslWidget> {
                     widget.proxyServer.configuration.flushConfig();
                   });
                 }),
+            if (Platform.isAndroid) Divider(height: 0, thickness: 0.3, color: dividerColor),
+            if (Platform.isAndroid)
+              SwitchListTile(
+                  hoverColor: Colors.transparent,
+                  title: Text(localizations.enableECapture),
+                  subtitle: Text(localizations.enableECaptureDescribe),
+                  value: widget.proxyServer.configuration.enableECapture,
+                  onChanged: (val) async {
+                    widget.proxyServer.configuration.enableECapture = val;
+                    widget.proxyServer.configuration.flushConfig();
+                    setState(() {});
+                    await ECaptureService.instance.setEnabled(val);
+                    if (mounted) setState(() {});
+                    if (!mounted) return;
+                    final status = ECaptureService.instance.status;
+                    if (val && status != 'running' && status != 'starting' && status != 'reconnecting') {
+                      FlutterToastr.show(status, context);
+                    }
+                  }),
             Divider(height: 0, thickness: 0.3, color: dividerColor),
             ListTile(
                 title: Text(localizations.installRootCa),

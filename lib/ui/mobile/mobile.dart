@@ -25,6 +25,7 @@ import 'package:proxypin/native/app_lifecycle.dart';
 import 'package:proxypin/native/pip.dart';
 import 'package:proxypin/native/vpn.dart';
 import 'package:proxypin/network/bin/configuration.dart';
+import 'package:proxypin/network/ecapture/service.dart';
 import 'package:proxypin/network/bin/listener.dart';
 import 'package:proxypin/network/bin/server.dart';
 import 'package:proxypin/network/channel/channel.dart';
@@ -122,6 +123,12 @@ class MobileHomeState extends State<MobileHomePage> implements EventListener, Li
   }
 
   @override
+  void onUpdate(HttpMessage message) {
+    MobileApp.requestStateKey.currentState?.refreshMessage(message);
+    NetworkTabController.current?.updateMessage(message);
+  }
+
+  @override
   void initState() {
     super.initState();
 
@@ -129,6 +136,12 @@ class MobileHomeState extends State<MobileHomePage> implements EventListener, Li
     proxyServer = ProxyServer(widget.configuration);
     proxyServer.addListener(this);
     proxyServer.start();
+    if (Platform.isAndroid) {
+      ECaptureService.instance.attach(proxyServer);
+      if (widget.configuration.enableECapture) {
+        unawaited(ECaptureService.instance.setEnabled(true));
+      }
+    }
     // 启动历史记录任务（单例；原由 ConfigPage 触发，配置页移除后在这里保证初始化）
     HistoryTask.ensureInstance(widget.configuration, MobileApp.container);
     _remoteHistorySubscription = HistoryStorage.onRemoteImported.listen((item) => _openHistoryPage(item));
@@ -178,6 +191,7 @@ class MobileHomeState extends State<MobileHomePage> implements EventListener, Li
   void dispose() {
     AppLifecycleBinding.instance.removeListener(this);
     _remoteHistorySubscription?.cancel();
+    unawaited(ECaptureService.instance.stop());
     super.dispose();
   }
 

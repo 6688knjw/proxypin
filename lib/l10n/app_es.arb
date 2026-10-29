@@ -64,6 +64,8 @@
   "enableSelect": "Activar selección",
   "enabledHTTP2": "Habilitar HTTP/2",
   "enabledHttps": "Habilitar proxy HTTPS",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "Captura texto TLS con eBPF. No pasa por MITM. Requiere root.",
   "enableScript": "Habilitar script",
   "enterMatchData": "Introduce los datos a coincidir",
   "example": "Ejemplo: ",

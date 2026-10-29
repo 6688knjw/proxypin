@@ -122,6 +122,11 @@ class RequestListState extends State<RequestListWidget> {
     domainListKey.currentState?.addResponse(response);
   }
 
+  void refreshMessage(HttpMessage message) {
+    requestSequenceKey.currentState?.refreshMessage(message);
+    domainListKey.currentState?.refreshMessage(message);
+  }
+
   ///移除
   void domainListRemove(List<HttpRequest> list) {
     container.removeWhere((element) => list.contains(element));

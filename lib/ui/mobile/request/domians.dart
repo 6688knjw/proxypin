@@ -120,14 +120,21 @@ class DomainListState extends State<DomainList> with AutomaticKeepAliveClientMix
   }
 
   void addResponse(HttpResponse response) {
-    HostAndPort? hostAndPort = response.request!.hostAndPort;
+    final request = response.request;
+    if (request == null) return;
+    HostAndPort? hostAndPort = request.hostAndPort;
     if (response.isWebSocket) {
-      add(response.request!);
+      add(request);
     }
 
     if (showHostAndPort == hostAndPort) {
       requestSequenceKey.currentState?.addResponse(response);
     }
+  }
+
+  void refreshMessage(HttpMessage message) {
+    if (showHostAndPort == null) return;
+    requestSequenceKey.currentState?.refreshMessage(message);
   }
 
   void clean() {

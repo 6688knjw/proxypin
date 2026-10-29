@@ -1,0 +1,59 @@
+name: Android Dev APK
+
+# Signing cert SHA-256: 8F:ED:E0:18:4B:81:B1:86:CC:B5:F3:7C:5A:8C:A3:C8:63:FE:15:69:6D:6F:1E:8F:97:2D:4A:1A:94:2E:B4:12
+# Package: com.network.proxy.dev  Alias: proxypin-dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - '*-chore-android-dev-apk-ci'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Install signing keystore
+        run: |
+          test -f tool/signing/proxypin-dev.p12
+          cp tool/signing/proxypin-dev.p12 android/app/proxypin-dev.p12
+          cp tool/signing/key.properties android/key.properties
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxypin-dev-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 14

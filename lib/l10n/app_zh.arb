@@ -214,6 +214,8 @@
   "newWindow": "新窗口打开",
   "httpRequest": "HTTP请求",
   "enabledHttps": "启用HTTPS代理",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "通过 eBPF 旁路捕获 TLS 明文，不经过 MITM，可抓证书固定/QUIC。需要 root。",
   "installRootCa": "安装根证书",
   "installCaLocal": "安装根证书到本机",
   "downloadRootCa": "下载根证书",

@@ -663,6 +663,12 @@ class AppLocalizationsTh extends AppLocalizations {
   String get enabledHttps => 'เปิดพร็อกซี HTTPS';
 
   @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe => 'จับ TLS plaintext ด้วย eBPF ไม่ผ่าน MITM ต้องใช้ root';
+
+  @override
   String get installRootCa => 'ติดตั้งใบรับรอง';
 
   @override

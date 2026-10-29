@@ -104,6 +104,12 @@ class _DesktopHomePagePageState extends State<DesktopHomePage> implements EventL
   }
 
   @override
+  void onUpdate(HttpMessage message) {
+    requestListStateKey.currentState?.refreshMessage(message);
+    panel.updateMessage(message);
+  }
+
+  @override
   void initState() {
     super.initState();
     proxyServer.addListener(this);

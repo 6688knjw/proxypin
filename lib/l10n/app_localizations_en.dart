@@ -663,6 +663,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enabledHttps => 'Enable HTTPS Proxy';
 
   @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe =>
+      'Capture TLS plaintext via eBPF. Bypasses MITM and certificate pinning. Root required.';
+
+  @override
   String get installRootCa => 'Install Certificate';
 
   @override

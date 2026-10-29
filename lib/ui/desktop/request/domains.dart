@@ -278,6 +278,16 @@ class DomainWidgetState extends State<DomainList> with AutomaticKeepAliveClientM
     }
   }
 
+  void refreshMessage(HttpMessage message) {
+    final requestId = message.requestId;
+    for (final domain in containerMap.values) {
+      domain.requestMap[requestId]?.changeState();
+    }
+    for (final domain in searchView.values) {
+      domain.requestMap[requestId]?.changeState();
+    }
+  }
+
   void remove(List<HttpRequest> list) {
     for (var request in list) {
       String? host = request.remoteDomain();

@@ -661,6 +661,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enabledHttps => '启用HTTPS代理';
 
   @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe => '通过 eBPF 旁路捕获 TLS 明文，不经过 MITM，可抓证书固定/QUIC。需要 root。';
+
+  @override
   String get installRootCa => '安装根证书';
 
   @override
@@ -2109,6 +2115,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get enabledHttps => '啟用HTTPS代理';
+
+  @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe => '透過 eBPF 旁路擷取 TLS 明文，不經過 MITM，可抓憑證固定/QUIC。需要 root。';
 
   @override
   String get installRootCa => '安裝根憑證';

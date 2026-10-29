@@ -64,6 +64,8 @@
   "enableSelect": "Aktifkan pilih",
   "enabledHTTP2": "Aktifkan HTTP/2",
   "enabledHttps": "Aktifkan proxy HTTPS",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "Tangkap plaintext TLS via eBPF. Tidak lewat MITM. Butuh root.",
   "enableScript": "Aktifkan script",
   "enterMatchData": "Masukkan data untuk dicocokkan",
   "example": "Contoh: ",

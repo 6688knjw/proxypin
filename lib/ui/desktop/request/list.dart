@@ -252,6 +252,11 @@ class DesktopRequestListState extends State<DesktopRequestListWidget> with Autom
     requestSequenceKey.currentState?.addResponse(response);
   }
 
+  void refreshMessage(HttpMessage message) {
+    domainListKey.currentState?.refreshMessage(message);
+    requestSequenceKey.currentState?.refreshMessage(message);
+  }
+
   void remove(List<HttpRequest> list) {
     container.removeWhere((element) => list.contains(element));
     domainListKey.currentState?.remove(list);

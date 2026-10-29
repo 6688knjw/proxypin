@@ -95,6 +95,20 @@ class NetworkTabController extends StatefulWidget {
     changeState();
   }
 
+  void updateMessage(HttpMessage message) {
+    final currentRequest = request.get();
+    if (currentRequest == null) return;
+    if (message is HttpRequest && currentRequest.requestId == message.requestId) {
+      request.set(message);
+      changeState();
+      return;
+    }
+    if (message is HttpResponse && currentRequest.requestId == message.requestId) {
+      response.set(message);
+      changeState();
+    }
+  }
+
   @override
   State<StatefulWidget> createState() {
     return NetworkTabState();

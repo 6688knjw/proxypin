@@ -113,9 +113,13 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
     changeState();
   }
 
+  void refreshMessage(HttpMessage message) {
+    responseCallbacks[message.requestId]?.call();
+  }
+
   ///添加响应
   void addResponse(HttpResponse response) {
-    final callback = responseCallbacks.remove(response.request?.requestId);
+    final callback = responseCallbacks[response.request?.requestId];
     callback?.call();
 
     if (searchModel == null || searchModel!.isEmpty || response.request == null) {

@@ -9,6 +9,8 @@
   "statusPaused": "Pausado",
   "pause": "Pausar",
   "resume": "Retomar",
-  "overview": "Visão geral"
+  "overview": "Visão geral",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "Captura texto TLS via eBPF. Nao passa pelo MITM. Requer root."
 }
 

@@ -213,6 +213,8 @@
   "newWindow": "New Window",
   "httpRequest": "HTTP Request",
   "enabledHttps": "Enable HTTPS Proxy",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "Capture TLS plaintext via eBPF. Bypasses MITM and certificate pinning. Root required.",
   "installRootCa": "Install Certificate",
   "installCaLocal": "Install Certificate to Local-Machine",
   "downloadRootCa": "Download Certificate",

@@ -64,6 +64,8 @@
   "enableSelect": "Bật chọn",
   "enabledHTTP2": "Bật HTTP/2",
   "enabledHttps": "Bật proxy HTTPS",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "Bắt plaintext TLS bằng eBPF, không qua MITM. Cần root.",
   "enableScript": "Bật Script",
   "enterMatchData": "Nhập dữ liệu cần khớp",
   "example": "Ví dụ: ",

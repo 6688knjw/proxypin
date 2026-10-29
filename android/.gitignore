@@ -11,4 +11,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+**/*.p12
+/app/proxypin-dev.p12
 /app/.cxx/

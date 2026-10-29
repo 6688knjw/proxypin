@@ -54,7 +54,7 @@ abstract class ChannelHandler<T> {
 class Channel {
   final int _id;
   final ChannelDispatcher dispatcher = ChannelDispatcher();
-  Socket _socket;
+  Socket? _rawSocket;
 
   //是否打开
   bool isOpen = true;
@@ -69,18 +69,34 @@ class Channel {
   //是否使用代理
   bool useProxy = false;
 
-  Channel(this._socket)
+  /// 旁路明文注入：没有真实客户端套接字。
+  final bool synthetic;
+
+  Channel(Socket socket)
       : _id = DateTime.now().millisecondsSinceEpoch + Random().nextInt(999999),
-        remoteSocketAddress = InetSocketAddress(_socket.remoteAddress, _socket.remotePort);
+        remoteSocketAddress = InetSocketAddress(socket.remoteAddress, socket.remotePort),
+        _rawSocket = socket,
+        synthetic = false;
+
+  Channel.synthetic(this.remoteSocketAddress)
+      : _id = DateTime.now().millisecondsSinceEpoch + Random().nextInt(999999),
+        synthetic = true,
+        isOpen = false;
 
   ///返回此channel的全局唯一标识符。
   String get id => _id.toRadixString(36);
 
-  Socket get socket => _socket;
+  Socket get socket {
+    final socket = _rawSocket;
+    if (socket == null) {
+      throw StateError('synthetic channel has no socket');
+    }
+    return socket;
+  }
 
   void serverSecureSocket(SecureSocket secureSocket, ChannelContext channelContext) {
-    _socket = secureSocket;
-    _socket.done.then((value) => isOpen = false);
+    _rawSocket = secureSocket;
+    _rawSocket!.done.then((value) => isOpen = false);
     dispatcher.listen(this, channelContext);
   }
 
@@ -91,8 +107,8 @@ class Channel {
     SecureSocket secureSocket = await SecureSocket.secure(socket,
         host: host, context: context, supportedProtocols: supportedProtocols, onBadCertificate: (certificate) => true);
 
-    _socket = secureSocket;
-    _socket.done.then((value) => isOpen = false);
+    _rawSocket = secureSocket;
+    _rawSocket!.done.then((value) => isOpen = false);
     dispatcher.listen(this, channelContext);
 
     return secureSocket;
@@ -104,8 +120,8 @@ class Channel {
     SecureSocket secureSocket = await SecureSocket.secure(socket,
         host: host, context: context, supportedProtocols: supportedProtocols, onBadCertificate: (certificate) => true);
 
-    _socket = secureSocket;
-    _socket.done.then((value) => isOpen = false);
+    _rawSocket = secureSocket;
+    _rawSocket!.done.then((value) => isOpen = false);
     return secureSocket;
   }
 
@@ -113,13 +129,13 @@ class Channel {
     dispatcher.listen(this, channelContext);
   }
 
-  String? get selectedProtocol => isSsl && isOpen ? (_socket as SecureSocket).selectedProtocol : null;
+  String? get selectedProtocol => isSsl && isOpen ? (_rawSocket as SecureSocket).selectedProtocol : null;
 
   ///是否是ssl链接
-  bool get isSsl => _socket is SecureSocket;
+  bool get isSsl => _rawSocket is SecureSocket;
 
   ///远程服务器证书(仅ssl链接有效)
-  X509Certificate? get peerCertificate => _socket is SecureSocket ? (_socket as SecureSocket).peerCertificate : null;
+  X509Certificate? get peerCertificate => _rawSocket is SecureSocket ? (_rawSocket as SecureSocket).peerCertificate : null;
 
   Future<void> write(ChannelContext channelContext, Object obj) async {
     var data = dispatcher.encoder.encode(channelContext, obj);
@@ -143,8 +159,8 @@ class Channel {
 
     isWriting = true;
     try {
-      if (!isClosed) {
-        _socket.add(bytes);
+      if (!isClosed && _rawSocket != null) {
+        _rawSocket!.add(bytes);
       }
     } catch (e, t) {
       if (e is StateError && e.message == "StreamSink is closed") {
@@ -175,11 +191,7 @@ class Channel {
       await Future.delayed(const Duration(milliseconds: 150));
     }
     isOpen = false;
-    // if (!isWriting) {
-    //   await _socket.flush();
-    // }
-    await _socket.close();
-    // _socket.destroy();
+    await _rawSocket?.close();
   }
 
   ///返回此channel是否打开

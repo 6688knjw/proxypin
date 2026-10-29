@@ -663,6 +663,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get enabledHttps => 'Enable HTTPS Proxy';
 
   @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe =>
+      'Captura texto TLS via eBPF. Nao passa pelo MITM. Requer root.';
+
+  @override
   String get installRootCa => 'Install Certificate';
 
   @override
@@ -1969,6 +1976,13 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get enabledHttps => 'Habilitar proxy HTTPS';
+
+  @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe =>
+      'Captura texto TLS via eBPF. Nao passa pelo MITM. Requer root.';
 
   @override
   String get installRootCa => 'Instalar certificado';

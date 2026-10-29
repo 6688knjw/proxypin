@@ -1390,6 +1390,18 @@ abstract class AppLocalizations {
   /// **'Enable HTTPS Proxy'**
   String get enabledHttps;
 
+  /// No description provided for @enableECapture.
+  ///
+  /// In en, this message translates to:
+  /// **'eCapture (root)'**
+  String get enableECapture;
+
+  /// No description provided for @enableECaptureDescribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture TLS plaintext via eBPF. Bypasses MITM and certificate pinning. Root required.'**
+  String get enableECaptureDescribe;
+
   /// No description provided for @installRootCa.
   ///
   /// In en, this message translates to:

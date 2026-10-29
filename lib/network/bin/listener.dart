@@ -10,6 +10,8 @@ abstract class EventListener {
   void onResponse(ChannelContext channelContext, HttpResponse response);
 
   void onMessage(Channel channel, HttpMessage message, WebSocketFrame frame) {}
+
+  void onUpdate(HttpMessage message) {}
 }
 
 
@@ -36,6 +38,13 @@ class CombinedEventListener extends EventListener {
   void onMessage(Channel channel, HttpMessage message, WebSocketFrame frame) {
     for (var element in listeners) {
       element.onMessage(channel, message, frame);
+    }
+  }
+
+  @override
+  void onUpdate(HttpMessage message) {
+    for (var element in listeners) {
+      element.onUpdate(message);
     }
   }
 }

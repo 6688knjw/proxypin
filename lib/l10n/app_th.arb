@@ -64,6 +64,8 @@
   "enableSelect": "เปิดโหมดเลือก",
   "enabledHTTP2": "เปิดใช้ HTTP/2",
   "enabledHttps": "เปิดพร็อกซี HTTPS",
+  "enableECapture": "eCapture (root)",
+  "enableECaptureDescribe": "จับ TLS plaintext ด้วย eBPF ไม่ผ่าน MITM ต้องใช้ root",
   "enableScript": "เปิดสคริปต์",
   "enterMatchData": "กรอกข้อมูลที่ต้องการจับคู่",
   "example": "ตัวอย่าง: ",

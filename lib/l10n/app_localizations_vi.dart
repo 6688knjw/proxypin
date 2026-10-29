@@ -663,6 +663,12 @@ class AppLocalizationsVi extends AppLocalizations {
   String get enabledHttps => 'Bật proxy HTTPS';
 
   @override
+  String get enableECapture => 'eCapture (root)';
+
+  @override
+  String get enableECaptureDescribe => 'Bắt plaintext TLS bằng eBPF, không qua MITM. Cần root.';
+
+  @override
   String get installRootCa => 'Cài đặt chứng chỉ';
 
   @override
