@@ -28,7 +28,8 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:label="ProxyPin Dev"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:replace="android:networkSecurityConfig">
         <activity
             android:name="com.network.proxy.MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
