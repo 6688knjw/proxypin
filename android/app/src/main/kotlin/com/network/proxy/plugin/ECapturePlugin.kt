@@ -118,7 +118,7 @@ class ECapturePlugin : AndroidFlutterPlugin() {
     }
 
     private fun getProcessByPid(pid: Int): ProcessInfo? {
-        if (!::activity.isInitialized) return null
+        if (!isActivityAttached()) return null
         val uid = uidOfPid(pid) ?: return null
         val packageManager = activity.packageManager
         val packages = try {

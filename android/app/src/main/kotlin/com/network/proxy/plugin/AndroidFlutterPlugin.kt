@@ -9,6 +9,8 @@ abstract class AndroidFlutterPlugin : FlutterPlugin, ActivityAware {
 
     protected lateinit var activity: Activity
 
+    protected fun isActivityAttached(): Boolean = ::activity.isInitialized
+
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     }
 
