@@ -22,6 +22,7 @@ import 'package:proxypin/mcp/capture/flow_view.dart';
 import 'package:proxypin/mcp/capture/history_provider.dart';
 import 'package:proxypin/network/bin/server.dart';
 import 'package:proxypin/network/components/host_filter.dart';
+import 'package:proxypin/network/ecapture/service.dart';
 import 'package:proxypin/network/http/http.dart';
 
 import 'json_rpc.dart';
@@ -137,14 +138,16 @@ class McpServer {
         McpTool(
           name: 'get_proxy_status',
           description:
-              'Get ProxyPin capture status: whether recording, proxy port, SSL interception, MCP version, and number of buffered flows.',
+              'Get ProxyPin capture status: whether recording, proxy port, SSL interception, eCapture (eBPF TLS plaintext) status, MCP version, and number of buffered flows.',
           inputSchema: {'type': 'object', 'properties': {}},
           handler: (_) async {
             var server = ProxyServer.current;
+            var ecap = ECaptureService.instance;
             return {
               'recording': server?.isRunning ?? false,
               'proxyPort': server?.port,
               'sslInterception': server?.enableSsl ?? false,
+              'ecapture': ecap.statusSnapshot(),
               'mcpVersion': serverVersion,
               'protocolVersion': protocolVersion,
               'bufferedFlows': store.count,
@@ -167,7 +170,7 @@ class McpServer {
         McpTool(
           name: 'list_flows',
           description:
-              'List captured HTTP flows as compact metadata (no headers/body). Newest first. Pass history_id to list flows from a saved history session (see list_histories); otherwise lists the live capture buffer. Use filters, then get_flow_detail / get_flow_body for a specific id.',
+              'List captured HTTP flows as compact metadata (no headers/body). Newest first. Pass history_id to list flows from a saved history session (see list_histories); otherwise lists the live capture buffer. Use source="ecapture" to list eBPF TLS plaintext (Android root, no MITM), or source="mitm" for proxy MITM. Use filters, then get_flow_detail / get_flow_body for a specific id.',
           inputSchema: {
             'type': 'object',
             'properties': {
@@ -183,10 +186,16 @@ class McpServer {
               'status_to': {'type': 'integer'},
               'keyword': {'type': 'string', 'description': 'Substring match on full URL'},
               'since_ms': {'type': 'integer', 'description': 'Epoch milliseconds lower bound'},
+              'source': {
+                'type': 'string',
+                'enum': ['all', 'mitm', 'ecapture'],
+                'description': 'Capture source. ecapture = eBPF TLS plaintext (Android root), mitm = proxy MITM. Default all.'
+              },
             }
           },
           handler: (args) async {
             var historyId = _intArg(args['history_id']);
+            var source = args['source']?.toString();
             List<HttpRequest> flows;
             int total;
             if (historyId != null) {
@@ -201,6 +210,7 @@ class McpServer {
                 statusTo: _intArg(args['status_to']),
                 keyword: args['keyword']?.toString(),
                 sinceMs: _intArg(args['since_ms']),
+                source: source,
               );
               total = meta.requestCount;
             } else {
@@ -213,6 +223,7 @@ class McpServer {
                 statusTo: _intArg(args['status_to']),
                 keyword: args['keyword']?.toString(),
                 sinceMs: _intArg(args['since_ms']),
+                source: source,
               );
               total = store.count;
             }
@@ -404,6 +415,13 @@ class McpServer {
             var redact = _effectiveRedact(args['redact'], redactEnabled());
             return {'curl': CurlBuilder.build(request, redact: redact)};
           },
+        ),
+        McpTool(
+          name: 'get_ecapture_status',
+          description:
+              'Get Android eCapture session status: enabled, process status, target package/uid, protobuf event count, and hooked libssl paths. Use list_flows(source: "ecapture") to read captured plaintext.',
+          inputSchema: {'type': 'object', 'properties': {}},
+          handler: (_) async => ECaptureService.instance.statusSnapshot(),
         ),
       ];
 

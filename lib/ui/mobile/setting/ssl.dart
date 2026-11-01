@@ -85,6 +85,44 @@ class _MobileSslState extends State<MobileSslWidget> {
     super.dispose();
   }
 
+  bool get _isZh => AppLocalizations.of(context)!.localeName.startsWith('zh');
+
+  String _eCaptureSwitchSubtitle() {
+    final describe = AppLocalizations.of(context)!.enableECaptureDescribe;
+    if (!widget.proxyServer.configuration.enableECapture) {
+      return describe;
+    }
+    final status = ECaptureService.instance.status;
+    final count = ECaptureService.instance.eventCount;
+    final libs = ECaptureService.instance.hookedLibs;
+    final pkg = ECaptureService.instance.package ?? widget.proxyServer.configuration.eCapturePackage;
+    final libHint = libs.isEmpty
+        ? (_isZh ? '未扫到 APK 自带 SSL' : 'no APK SSL libs')
+        : libs.map((e) => e.split('/').last).take(4).join(', ');
+    final pkgHint = (pkg == null || pkg.isEmpty) ? (_isZh ? '无目标包' : 'no package') : pkg;
+    final detail = _isZh
+        ? '目标 $pkgHint，状态: $status，事件 $count，hook $libHint'
+        : 'Target $pkgHint, status: $status, events $count, hook $libHint';
+    return '$describe\n$detail';
+  }
+
+  String _eCaptureStatusText(bool enabling) {
+    if (!enabling) {
+      return _isZh ? 'eCapture 已关闭' : 'eCapture stopped';
+    }
+    final status = ECaptureService.instance.status;
+    if (status == 'running') {
+      return _isZh ? 'eCapture 已启动，明文会出现在 eCapture 列表' : 'eCapture running. Plaintext appears in the eCapture tab';
+    }
+    if (status == 'waiting websocket') {
+      return _isZh ? 'eCapture 进程已起，等待 WebSocket 连接' : 'eCapture started, waiting for WebSocket';
+    }
+    if (status == 'starting' || status == 'reconnecting') {
+      return _isZh ? 'eCapture 正在启动: $status' : 'eCapture starting: $status';
+    }
+    return _isZh ? 'eCapture 启动失败: $status' : 'eCapture failed: $status';
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
@@ -126,19 +164,25 @@ class _MobileSslState extends State<MobileSslWidget> {
               SwitchListTile(
                   hoverColor: Colors.transparent,
                   title: Text(localizations.enableECapture),
-                  subtitle: Text(localizations.enableECaptureDescribe),
+                  subtitle: Text(_eCaptureSwitchSubtitle()),
                   value: widget.proxyServer.configuration.enableECapture,
                   onChanged: (val) async {
+                    if (val) {
+                      final pkg = widget.proxyServer.configuration.eCapturePackage;
+                      if (pkg == null || pkg.isEmpty) {
+                        FlutterToastr.show(
+                            _isZh ? '请先用 MCP 指定目标包: ecapture_discover / ecapture_start' : 'Set a target package first via ecapture_discover / ecapture_start',
+                            context);
+                        return;
+                      }
+                    }
                     widget.proxyServer.configuration.enableECapture = val;
                     widget.proxyServer.configuration.flushConfig();
                     setState(() {});
                     await ECaptureService.instance.setEnabled(val);
                     if (mounted) setState(() {});
                     if (!mounted) return;
-                    final status = ECaptureService.instance.status;
-                    if (val && status != 'running' && status != 'starting' && status != 'reconnecting') {
-                      FlutterToastr.show(status, context);
-                    }
+                    FlutterToastr.show(_eCaptureStatusText(val), context);
                   }),
             Divider(height: 0, thickness: 0.3, color: dividerColor),
             ListTile(

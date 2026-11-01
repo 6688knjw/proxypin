@@ -83,6 +83,7 @@ void main() {
 
       parser.attachMeta(request, reqEvent);
       request.hostAndPort = parser.hostAndPort(reqEvent, request: request);
+      expect(request.fromECapture, isTrue);
       expect(request.requestUrl, 'https://example.com/v1/login');
       expect(request.processInfo, isNull);
       request.processInfo = parser.processInfo(reqEvent);

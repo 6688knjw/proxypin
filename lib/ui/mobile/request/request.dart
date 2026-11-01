@@ -170,6 +170,10 @@ class RequestRowState extends State<RequestRow> {
               maxLines: 1,
               TextSpan(children: [
                 TextSpan(text: '#${widget.index} ', style: const TextStyle(fontSize: 11, color: Colors.teal)),
+                if (request.fromECapture)
+                  TextSpan(
+                      text: 'ECP ',
+                      style: TextStyle(fontSize: 11, color: Colors.deepOrange.shade600, fontWeight: FontWeight.w600)),
                 TextSpan(text: subTitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ])),
           trailing: request.protocolVersion == 'MQTT'

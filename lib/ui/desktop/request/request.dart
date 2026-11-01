@@ -233,6 +233,11 @@ class _RequestWidgetState extends State<RequestWidget> {
                         overflow: TextOverflow.ellipsis,
                         TextSpan(children: [
                           TextSpan(text: '#${widget.index} ', style: const TextStyle(fontSize: 11, color: Colors.teal)),
+                          if (request.fromECapture)
+                            TextSpan(
+                                text: 'ECP ',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.deepOrange.shade600, fontWeight: FontWeight.w600)),
                           TextSpan(text: '$time - ', style: TextStyle(fontSize: 11, color: text3Color(theme))),
                           TextSpan(
                               text: '[${response?.status.code ?? ''}]',

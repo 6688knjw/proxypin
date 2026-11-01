@@ -38,7 +38,7 @@ class ECaptureService {
 
   ProxyServer? _server;
   io.HttpServer? _httpServer;
-  io.WebSocket? _socket;
+  final Set<io.WebSocket> _sockets = {};
   StreamSubscription? _httpSub;
   Timer? _reconnect;
   Future<void> _eventChain = Future.value();
@@ -47,13 +47,102 @@ class ECaptureService {
   bool _enabled = false;
   bool _starting = false;
   String _status = 'stopped';
+  int _eventCount = 0;
+  List<String> _hookedLibs = const [];
+  String? _package;
+  int? _uid;
+  List<String> _requestedLibs = const [];
+  bool _launch = true;
+  Map<String, dynamic> _lastDiscover = const {};
 
   bool get isRunning => _enabled && _httpServer != null;
 
+  bool get _hasClient => _sockets.isNotEmpty;
+
   String get status => _status;
+
+  int get eventCount => _eventCount;
+
+  List<String> get hookedLibs => _hookedLibs;
+
+  String? get package => _package;
+
+  int? get uid => _uid;
 
   void attach(ProxyServer server) {
     _server = server;
+    _package ??= server.configuration.eCapturePackage;
+  }
+
+  Future<Map<String, dynamic>> discover(String package) async {
+    if (!io.Platform.isAndroid) {
+      return {'ok': false, 'error': 'unsupported'};
+    }
+    final pkg = package.trim();
+    if (pkg.isEmpty) {
+      return {'ok': false, 'error': 'package is required'};
+    }
+    final result = await ECaptureNative.discover(pkg);
+    _lastDiscover = result;
+    if (result['ok'] == true) {
+      _package = result['package']?.toString() ?? pkg;
+      _uid = _asInt(result['uid']);
+      await _persistSession(enabled: _enabled, package: _package);
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>> startSession({
+    required String package,
+    int? uid,
+    List<String>? libs,
+    bool launch = true,
+  }) async {
+    if (!io.Platform.isAndroid) {
+      _status = 'unsupported';
+      return statusSnapshot(ok: false, error: 'unsupported');
+    }
+    final pkg = package.trim();
+    if (pkg.isEmpty) {
+      _status = 'package is required';
+      return statusSnapshot(ok: false, error: 'package is required');
+    }
+    _package = pkg;
+    _uid = uid;
+    _requestedLibs = libs?.where((e) => e.trim().isNotEmpty).toList() ?? const [];
+    _launch = launch;
+    _enabled = true;
+    await _persistSession(enabled: true, package: pkg);
+    return start();
+  }
+
+  Future<Map<String, dynamic>> stopSession() async {
+    await stop();
+    await _persistSession(enabled: false);
+    return statusSnapshot(ok: true);
+  }
+
+  Map<String, dynamic> statusSnapshot({bool? ok, String? error}) {
+    final running = _status == 'running' || _status == 'waiting websocket';
+    return {
+      'ok': ok ?? (_enabled && running),
+      'enabled': _enabled,
+      'status': _status,
+      if (error != null) 'error': error,
+      if (_status != 'running' &&
+          _status != 'waiting websocket' &&
+          _status != 'starting' &&
+          _status != 'reconnecting' &&
+          _status != 'stopped' &&
+          error == null)
+        'error': _status,
+      'eventCount': _eventCount,
+      'hookedLibs': _hookedLibs,
+      'package': _package,
+      'uid': _uid,
+      'wsUrl': defaultWsUrl,
+      if (_lastDiscover.isNotEmpty) 'discover': _lastDiscover,
+    };
   }
 
   Future<void> setEnabled(bool enabled) async {
@@ -63,33 +152,63 @@ class ECaptureService {
     }
     if (enabled) {
       _enabled = true;
+      _package ??= _server?.configuration.eCapturePackage;
       await start();
       return;
     }
     await stop();
   }
 
-  Future<void> start() async {
-    if (!io.Platform.isAndroid || !_enabled || _starting) return;
+  Future<Map<String, dynamic>> start() async {
+    if (!io.Platform.isAndroid) {
+      _status = 'unsupported';
+      return statusSnapshot(ok: false, error: 'unsupported');
+    }
+    if (!_enabled) {
+      return statusSnapshot(ok: false, error: 'not enabled');
+    }
+    if (_starting) {
+      return statusSnapshot();
+    }
     _starting = true;
     _status = 'starting';
     try {
+      final package = _package ?? _server?.configuration.eCapturePackage;
+      if (package == null || package.trim().isEmpty) {
+        _status = 'package is required';
+        logger.w('[eCapture] start skipped: package is required');
+        return statusSnapshot(ok: false, error: 'package is required');
+      }
+      _package = package.trim();
       await _listenWs();
       final binary = await ECaptureBinary.resolve();
-      final native = await ECaptureNative.start(binaryPath: binary.path, wsUrl: defaultWsUrl);
+      final native = await ECaptureNative.start(
+        binaryPath: binary.path,
+        wsUrl: defaultWsUrl,
+        package: _package!,
+        uid: _uid,
+        libs: _requestedLibs.isEmpty ? null : _requestedLibs,
+        launch: _launch,
+      );
       if (native['ok'] != true) {
         _status = (native['error'] as String?) ?? 'native start failed';
+        _hookedLibs = _parseLibs(native['libs']);
         logger.w('[eCapture] native start failed: $_status');
-        _scheduleRestart();
-        return;
+        return statusSnapshot(ok: false, error: _status);
       }
-      if (_socket != null) {
-        _status = 'running';
+      _hookedLibs = _parseLibs(native['libs']);
+      _uid = _asInt(native['uid']) ?? _uid;
+      logger.i('[eCapture] hooked libs: $_hookedLibs');
+      for (var i = 0; i < 20 && !_hasClient; i++) {
+        await Future.delayed(const Duration(milliseconds: 150));
       }
+      _status = _hasClient ? 'running' : 'waiting websocket';
+      await _persistSession(enabled: true, package: _package);
+      return statusSnapshot(ok: true);
     } catch (e, st) {
       _status = e.toString();
       logger.e('[eCapture] start failed', error: e, stackTrace: st);
-      _scheduleRestart();
+      return statusSnapshot(ok: false, error: _status);
     } finally {
       _starting = false;
     }
@@ -99,8 +218,7 @@ class ECaptureService {
     _enabled = false;
     _reconnect?.cancel();
     _reconnect = null;
-    await _socket?.close();
-    _socket = null;
+    await _closeSockets();
     await _httpSub?.cancel();
     _httpSub = null;
     await _httpServer?.close(force: true);
@@ -119,7 +237,43 @@ class ECaptureService {
     _pendingUpdates.clear();
     _eventChain = Future.value();
     _restartAttempt = 0;
+    _eventCount = 0;
+    _hookedLibs = const [];
     _status = 'stopped';
+  }
+
+  List<String> _parseLibs(dynamic raw) {
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+    }
+    return const [];
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim());
+    return null;
+  }
+
+  Future<void> _persistSession({required bool enabled, String? package}) async {
+    final config = _server?.configuration;
+    if (config == null) return;
+    config.enableECapture = enabled;
+    if (package != null && package.isNotEmpty) {
+      config.eCapturePackage = package;
+    }
+    await config.flushConfig();
+  }
+
+  Future<void> _closeSockets() async {
+    final sockets = List<io.WebSocket>.from(_sockets);
+    _sockets.clear();
+    for (final socket in sockets) {
+      try {
+        await socket.close();
+      } catch (_) {}
+    }
   }
 
   Future<void> _listenWs() async {
@@ -143,18 +297,17 @@ class ECaptureService {
     }
     try {
       final socket = await io.WebSocketTransformer.upgrade(request);
-      await _socket?.close();
-      _socket = socket;
+      _sockets.add(socket);
       _restartAttempt = 0;
       _status = 'running';
-      logger.i('[eCapture] websocket client connected');
+      logger.i('[eCapture] websocket client connected (${_sockets.length})');
       socket.listen(
         _onFrame,
         onError: (e, st) {
           logger.w('[eCapture] websocket error $e');
-          _onClientGone();
+          _onClientGone(socket);
         },
-        onDone: _onClientGone,
+        onDone: () => _onClientGone(socket),
         cancelOnError: true,
       );
     } catch (e, st) {
@@ -162,11 +315,13 @@ class ECaptureService {
     }
   }
 
-  void _onClientGone() {
-    _socket = null;
+  void _onClientGone(io.WebSocket socket) {
+    _sockets.remove(socket);
     if (!_enabled) return;
-    logger.i('[eCapture] websocket client closed');
-    _scheduleRestart();
+    logger.i('[eCapture] websocket client closed (${_sockets.length} left)');
+    if (_sockets.isEmpty) {
+      _scheduleRestart();
+    }
   }
 
   void _scheduleRestart() {
@@ -183,11 +338,11 @@ class ECaptureService {
   Future<void> _restartNative() async {
     if (!_enabled || _starting) return;
     try {
-      if (_socket != null && await ECaptureNative.isRunning()) {
+      if (_hasClient && await ECaptureNative.isRunning()) {
         _status = 'running';
         return;
       }
-      if (_socket == null) {
+      if (!_hasClient) {
         await ECaptureNative.stop();
       }
       await start();
@@ -213,6 +368,7 @@ class ECaptureService {
       final event = entry.event;
       if (entry.logType != ECaptureLogEntry.logEvent || event == null) return;
       if (event.payload.isEmpty) return;
+      _eventCount++;
       _handleEvent(event);
     } catch (e, st) {
       logger.d('[eCapture] frame decode failed: $e', stackTrace: st);

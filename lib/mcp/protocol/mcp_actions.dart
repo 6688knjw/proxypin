@@ -23,6 +23,7 @@ import 'package:proxypin/mcp/capture/sensitive_data.dart';
 import 'package:proxypin/network/bin/configuration.dart';
 import 'package:proxypin/network/bin/server.dart';
 import 'package:proxypin/network/channel/host_port.dart';
+import 'package:proxypin/network/ecapture/service.dart';
 import 'package:proxypin/network/components/host_filter.dart';
 import 'package:proxypin/network/components/manager/request_block_manager.dart';
 import 'package:proxypin/network/components/manager/request_breakpoint_manager.dart';
@@ -90,6 +91,10 @@ class McpActions {
         _getScriptDetail(),
         _removeScript(),
         _enableSslProxying(),
+        _enableECapture(),
+        _ecaptureDiscover(),
+        _ecaptureStart(),
+        _ecaptureStop(),
         _setSystemProxy(),
         _getCertificateStatus(),
         _replayFlow(),
@@ -1045,6 +1050,98 @@ class McpActions {
           await server.configuration.flushConfig();
           return {'sslInterception': enabled, if (domain != null) 'domain': domain};
         },
+      );
+
+  McpTool _enableECapture() => McpTool(
+        name: 'enable_ecapture',
+        description:
+            'Start or stop the last Android eCapture session target. Prefer ecapture_discover(package) then ecapture_start(package). Requires a rooted Android device. Captured plaintext appears in list_flows(source: "ecapture").',
+        inputSchema: {
+          'type': 'object',
+          'properties': {
+            'enabled': {'type': 'boolean'},
+          },
+          'required': ['enabled'],
+        },
+        handler: (a) async {
+          var enabled = a['enabled'] == true;
+          var server = ProxyServer.current;
+          if (server == null) throw ToolException('Proxy server is not initialized');
+          var ecap = ECaptureService.instance;
+          if (!enabled) {
+            return ecap.stopSession();
+          }
+          var pkg = ecap.package ?? server.configuration.eCapturePackage;
+          if (pkg == null || pkg.trim().isEmpty) {
+            throw ToolException('No last eCapture package. Call ecapture_discover then ecapture_start with a package.');
+          }
+          return ecap.startSession(package: pkg.trim());
+        },
+      );
+
+  McpTool _ecaptureDiscover() => McpTool(
+        name: 'ecapture_discover',
+        description:
+            'Probe an Android app for eCapture TLS hookability: uid, pid, libssl/boringssl/conscrypt/cronet/flutter paths, and whether plaintext capture can start. Requires a rooted Android device. Do not start capture yet.',
+        inputSchema: {
+          'type': 'object',
+          'properties': {
+            'package': {'type': 'string', 'description': 'Android package name, e.g. com.example.app'},
+          },
+          'required': ['package'],
+        },
+        handler: (a) async {
+          var pkg = a['package']?.toString().trim() ?? '';
+          if (pkg.isEmpty) throw ToolException('Missing required parameter: package');
+          return ECaptureService.instance.discover(pkg);
+        },
+      );
+
+  McpTool _ecaptureStart() => McpTool(
+        name: 'ecapture_start',
+        description:
+            'Start an Android eCapture TLS plaintext session for one package. Uses uid + --libssl from discover, force-stops the app, starts eCapture, waits 4s, then relaunches the app. Requires a rooted Android device. Read plaintext with list_flows(source: "ecapture"). Do not pass pcap/keylog/bash/argv.',
+        inputSchema: {
+          'type': 'object',
+          'properties': {
+            'package': {'type': 'string', 'description': 'Android package name'},
+            'uid': {'type': 'integer', 'description': 'Optional uid from ecapture_discover'},
+            'libs': {
+              'type': 'array',
+              'items': {'type': 'string'},
+              'description': 'Optional absolute libssl paths from ecapture_discover.hookLibs'
+            },
+            'launch': {
+              'type': 'boolean',
+              'description': 'Relaunch the app after starting eCapture. Default true.'
+            },
+          },
+          'required': ['package'],
+        },
+        handler: (a) async {
+          var pkg = a['package']?.toString().trim() ?? '';
+          if (pkg.isEmpty) throw ToolException('Missing required parameter: package');
+          var uid = a['uid'] is int
+              ? a['uid'] as int
+              : a['uid'] is num
+                  ? (a['uid'] as num).toInt()
+                  : int.tryParse(a['uid']?.toString() ?? '');
+          List<String>? libs;
+          var rawLibs = a['libs'];
+          if (rawLibs is List) {
+            libs = rawLibs.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+          }
+          var launch = a['launch'] is bool ? a['launch'] as bool : true;
+          return ECaptureService.instance.startSession(package: pkg, uid: uid, libs: libs, launch: launch);
+        },
+      );
+
+  McpTool _ecaptureStop() => McpTool(
+        name: 'ecapture_stop',
+        description:
+            'Stop the current Android eCapture session with pidfile + SIGINT (kill -2). Does not expose pcap/keylog/bash.',
+        inputSchema: {'type': 'object', 'properties': {}},
+        handler: (_) async => ECaptureService.instance.stopSession(),
       );
 
   McpTool _setSystemProxy() => McpTool(

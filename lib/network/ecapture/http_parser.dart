@@ -60,6 +60,9 @@ class ECaptureHttpParser {
     message.remoteHost = event.dstIp;
     message.remotePort = event.dstPort;
     message.requestId = event.pairKey;
+    if (message is HttpRequest) {
+      message.fromECapture = true;
+    }
     if (event.timestamp > 0) {
       final time = DateTime.fromMillisecondsSinceEpoch(
         event.timestamp > 1000000000000 ? event.timestamp : event.timestamp * 1000,

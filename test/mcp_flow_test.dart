@@ -106,10 +106,18 @@ void main() {
   var other = buildFlow(responseSize: 10);
   other.uri = 'https://other.test/path';
   store.backfill([other]);
-  check(store.query(host: 'other').length == 1, 'host filter');
-  check(store.query(method: 'POST').length == 2, 'method filter');
-  check(store.query(host: 'nomatch').isEmpty, 'no match filter');
-  });
+   check(store.query(host: 'other').length == 1, 'host filter');
+   check(store.query(method: 'POST').length == 2, 'method filter');
+   check(store.query(host: 'nomatch').isEmpty, 'no match filter');
+
+   var ecap = buildFlow(responseSize: 10);
+   ecap.fromECapture = true;
+   store.backfill([ecap]);
+   check(store.query(source: 'ecapture').length == 1, 'ecapture source filter');
+   check(store.query(source: 'mitm').length == 2, 'mitm source filter');
+   check(FlowView.summary(ecap)['source'] == 'ecapture', 'summary marks eCapture');
+   check(FlowView.summary(big)['source'] == 'mitm', 'summary marks MITM');
+   });
 
   test('mcp json-rpc initialize / tools / call', () async {
     var flow = buildFlow(responseSize: 100);
@@ -123,12 +131,13 @@ void main() {
     var list = await mcp.handle({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'});
     var tools = list!['result']['tools'] as List;
     var names = tools.map((t) => (t as Map)['name']).toSet();
-    check(names.contains('list_flows'), 'tools/list has list_flows');
-    check(names.contains('get_flow_detail'), 'tools/list has get_flow_detail');
-    check(names.contains('export_flow_curl'), 'tools/list has export_flow_curl');
-    check(names.contains('search_flows'), 'tools/list has search_flows');
-    check(names.contains('get_ssl_proxying_list'), 'tools/list has get_ssl_proxying_list');
-    check(tools.length == 9, 'builtin read-only tools expose 9 tools, got ${tools.length}');
+     check(names.contains('list_flows'), 'tools/list has list_flows');
+     check(names.contains('get_flow_detail'), 'tools/list has get_flow_detail');
+     check(names.contains('export_flow_curl'), 'tools/list has export_flow_curl');
+     check(names.contains('search_flows'), 'tools/list has search_flows');
+     check(names.contains('get_ssl_proxying_list'), 'tools/list has get_ssl_proxying_list');
+     check(names.contains('get_ecapture_status'), 'tools/list has get_ecapture_status');
+     check(tools.length == 10, 'builtin read-only tools expose 10 tools, got ${tools.length}');
 
     var call = await mcp.handle({
       'jsonrpc': '2.0',
@@ -231,11 +240,16 @@ void main() {
     var names = (res!['result']['tools'] as List).map((t) => (t as Map)['name'].toString()).toSet();
 
     // 只读流量工具与写工具同时暴露，无门控
-    check(names.contains('list_flows'), 'exposes read tool list_flows');
-    check(names.contains('create_breakpoint'), 'exposes create_breakpoint');
-    check(names.contains('toggle_recording'), 'exposes toggle_recording');
-    check(names.contains('replay_flow') && names.contains('generate_code'), 'exposes replay/generate');
-    check(names.length == 9 + actionNames.length, 'exposes builtin + action tools, got ${names.length}');
+     check(names.contains('list_flows'), 'exposes read tool list_flows');
+      check(names.contains('get_ecapture_status'), 'exposes get_ecapture_status');
+      check(names.contains('enable_ecapture'), 'exposes enable_ecapture');
+      check(names.contains('ecapture_discover'), 'exposes ecapture_discover');
+      check(names.contains('ecapture_start'), 'exposes ecapture_start');
+      check(names.contains('ecapture_stop'), 'exposes ecapture_stop');
+     check(names.contains('create_breakpoint'), 'exposes create_breakpoint');
+     check(names.contains('toggle_recording'), 'exposes toggle_recording');
+     check(names.contains('replay_flow') && names.contains('generate_code'), 'exposes replay/generate');
+     check(names.length == 10 + actionNames.length, 'exposes builtin + action tools, got ${names.length}');
   });
 
   test('generate_code honors redaction hard gate like other tools', () async {

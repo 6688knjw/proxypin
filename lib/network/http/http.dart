@@ -198,6 +198,10 @@ class HttpRequest extends HttpMessage {
   Map<String, dynamic> attributes = {};
   ProcessInfo? processInfo;
 
+  bool get fromECapture => attributes['ecapture'] == true;
+
+  set fromECapture(bool value) => attributes['ecapture'] = value;
+
   String get uri => _uri;
 
   set uri(String uri) {

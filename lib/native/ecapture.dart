@@ -22,19 +22,35 @@ class ECaptureNative {
     }
   }
 
+  static Future<Map<String, dynamic>> discover(String package) async {
+    try {
+      final raw = await _channel.invokeMethod('discover', {'package': package});
+      return _asMap(raw);
+    } on MissingPluginException {
+      return {'ok': false, 'error': 'plugin missing'};
+    } on PlatformException catch (e) {
+      return {'ok': false, 'error': e.message ?? e.code};
+    }
+  }
+
   static Future<Map<String, dynamic>> start({
     required String binaryPath,
-    String wsUrl = 'ws://127.0.0.1:28257',
+    String wsUrl = 'ws://127.0.0.1:28257/',
+    required String package,
+    int? uid,
+    List<String>? libs,
+    bool launch = true,
   }) async {
     try {
       final raw = await _channel.invokeMethod('start', {
         'binaryPath': binaryPath,
         'wsUrl': wsUrl,
+        'package': package,
+        if (uid != null) 'uid': uid,
+        if (libs != null) 'libs': libs,
+        'launch': launch,
       });
-      if (raw is Map) {
-        return raw.map((key, value) => MapEntry(key.toString(), value));
-      }
-      return {'ok': false, 'error': 'empty result'};
+      return _asMap(raw);
     } on MissingPluginException {
       return {'ok': false, 'error': 'plugin missing'};
     } on PlatformException catch (e) {
@@ -80,5 +96,21 @@ class ECaptureNative {
     } on PlatformException {
       return null;
     }
+  }
+
+  static Map<String, dynamic> _asMap(dynamic raw) {
+    final value = _normalize(raw);
+    if (value is Map<String, dynamic>) return value;
+    return {'ok': false, 'error': 'empty result'};
+  }
+
+  static dynamic _normalize(dynamic value) {
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), _normalize(item)));
+    }
+    if (value is List) {
+      return value.map(_normalize).toList();
+    }
+    return value;
   }
 }

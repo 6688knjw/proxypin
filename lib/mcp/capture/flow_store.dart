@@ -175,6 +175,7 @@ class FlowStore extends EventListener {
     int? statusTo,
     String? keyword,
     int? sinceMs,
+    String? source,
   }) async {
     var requests = await _historyRequests(historyId);
     return _filter(requests,
@@ -185,7 +186,8 @@ class FlowStore extends EventListener {
         statusFrom: statusFrom,
         statusTo: statusTo,
         keyword: keyword,
-        sinceMs: sinceMs);
+        sinceMs: sinceMs,
+        source: source);
   }
 
   Future<List<HttpRequest>> historySearch(int historyId, String keyword,
@@ -204,6 +206,7 @@ class FlowStore extends EventListener {
     int? statusTo,
     String? keyword,
     int? sinceMs,
+    String? source,
   }) {
     return _filter(_byId.values.toList(growable: false),
         limit: limit,
@@ -213,13 +216,14 @@ class FlowStore extends EventListener {
         statusFrom: statusFrom,
         statusTo: statusTo,
         keyword: keyword,
-        sinceMs: sinceMs);
+        sinceMs: sinceMs,
+        source: source);
   }
 
   /// 在给定请求集合上按条件过滤，按时间倒序（最新在前）返回，应用 limit/offset。
   /// 实时缓冲与历史会话共用，保证两处过滤口径一致。
   List<HttpRequest> _filter(
-    List<HttpRequest> source, {
+    List<HttpRequest> requests, {
     required int limit,
     required int offset,
     String? host,
@@ -228,6 +232,7 @@ class FlowStore extends EventListener {
     int? statusTo,
     String? keyword,
     int? sinceMs,
+    String? source,
   }) {
     limit = limit.clamp(1, 100);
     offset = offset < 0 ? 0 : offset;
@@ -238,9 +243,9 @@ class FlowStore extends EventListener {
     var matched = <HttpRequest>[];
 
     // 倒序遍历
-    for (var i = source.length - 1; i >= 0; i--) {
-      var request = source[i];
-      if (!_matches(request, hostLower, methodUpper, statusFrom, statusTo, keywordLower, sinceMs)) {
+    for (var i = requests.length - 1; i >= 0; i--) {
+      var request = requests[i];
+      if (!_matches(request, hostLower, methodUpper, statusFrom, statusTo, keywordLower, sinceMs, source)) {
         continue;
       }
       matched.add(request);
@@ -300,7 +305,14 @@ class FlowStore extends EventListener {
   }
 
   bool _matches(HttpRequest request, String? host, String? method, int? statusFrom, int? statusTo,
-      String? keyword, int? sinceMs) {
+      String? keyword, int? sinceMs, String? source) {
+    if (source != null && source.isNotEmpty) {
+      var expected = source.toLowerCase();
+      var actual = request.fromECapture ? 'ecapture' : 'mitm';
+      if (expected != actual && expected != 'all') {
+        return false;
+      }
+    }
     if (method != null && method.isNotEmpty && request.method.name.toUpperCase() != method) {
       return false;
     }

@@ -60,6 +60,9 @@ class Configuration {
   /// Android root: 旁路接入 eCapture 明文，不经过 MITM 代理链
   bool enableECapture = false;
 
+  /// 上次 eCapture 会话目标包名；UI 开关复用该目标
+  String? eCapturePackage;
+
   //历史记录缓存时间
   int historyCacheTime = 0;
 
@@ -93,6 +96,10 @@ class Configuration {
     enableSocks5 = config['enableSocks5'] ?? true;
     enabledHttp2 = config['enabledHttp2'] ?? false;
     enableECapture = config['enableECapture'] == true;
+    eCapturePackage = (config['eCapturePackage'] as String?)?.trim();
+    if (eCapturePackage != null && eCapturePackage!.isEmpty) {
+      eCapturePackage = null;
+    }
 
     proxyPassDomains = config['proxyPassDomains'] ?? SystemProxy.proxyPassDomains;
     historyCacheTime = config['historyCacheTime'] ?? 0;
@@ -155,6 +162,7 @@ class Configuration {
       'historyCacheTime': historyCacheTime,
       'enabledHttp2': enabledHttp2,
       'enableECapture': enableECapture,
+      'eCapturePackage': eCapturePackage,
       'whitelist': HostFilter.whitelist.toJson(),
       'blacklist': HostFilter.blacklist.toJson(),
     };

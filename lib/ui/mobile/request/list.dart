@@ -46,6 +46,7 @@ class RequestListWidget extends StatefulWidget {
 
 class RequestListState extends State<RequestListWidget> {
   final GlobalKey<RequestSequenceState> requestSequenceKey = GlobalKey<RequestSequenceState>();
+  final GlobalKey<RequestSequenceState> eCaptureSequenceKey = GlobalKey<RequestSequenceState>();
   final GlobalKey<DomainListState> domainListKey = GlobalKey<DomainListState>();
 
   //请求列表容器
@@ -72,12 +73,17 @@ class RequestListState extends State<RequestListWidget> {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> tabs = [Tab(child: Text(localizations.sequence)), Tab(child: Text(localizations.domainList))];
+    List<Widget> tabs = [
+      Tab(child: Text(localizations.sequence)),
+      Tab(child: Text(localizations.domainList)),
+      const Tab(child: Text('eCapture')),
+    ];
 
     //double click scroll to top
     var tabClickHandles = [
       DoubleClickHandle(handle: () => requestSequenceKey.currentState?.scrollToTop()),
-      DoubleClickHandle(handle: () => domainListKey.currentState?.scrollToTop())
+      DoubleClickHandle(handle: () => domainListKey.currentState?.scrollToTop()),
+      DoubleClickHandle(handle: () => eCaptureSequenceKey.currentState?.scrollToTop()),
     ];
 
     return DefaultTabController(
@@ -104,6 +110,13 @@ class RequestListState extends State<RequestListWidget> {
                       domainListKey.currentState?.search(_currentSearchModel!);
                     }
                   }),
+              RequestSequence(
+                  key: eCaptureSequenceKey,
+                  container: container,
+                  proxyServer: widget.proxyServer,
+                  onRemove: sequenceRemove,
+                  selectionController: widget.selectionController,
+                  requestFilter: (request) => request.fromECapture),
             ],
           ),
         ));
@@ -114,23 +127,27 @@ class RequestListState extends State<RequestListWidget> {
     container.add(request);
     requestSequenceKey.currentState?.add(request);
     domainListKey.currentState?.add(request);
+    eCaptureSequenceKey.currentState?.add(request);
   }
 
   ///添加响应
   void addResponse(ChannelContext channelContext, HttpResponse response) {
     requestSequenceKey.currentState?.addResponse(response);
     domainListKey.currentState?.addResponse(response);
+    eCaptureSequenceKey.currentState?.addResponse(response);
   }
 
   void refreshMessage(HttpMessage message) {
     requestSequenceKey.currentState?.refreshMessage(message);
     domainListKey.currentState?.refreshMessage(message);
+    eCaptureSequenceKey.currentState?.refreshMessage(message);
   }
 
   ///移除
   void domainListRemove(List<HttpRequest> list) {
     container.removeWhere((element) => list.contains(element));
     requestSequenceKey.currentState?.remove(list);
+    eCaptureSequenceKey.currentState?.remove(list);
     RequestRowState.removeAutoReadByIds(list.map((request) => request.requestId));
   }
 
@@ -138,6 +155,7 @@ class RequestListState extends State<RequestListWidget> {
   void sequenceRemove(List<HttpRequest> list) {
     container.removeWhere((element) => list.contains(element));
     domainListKey.currentState?.remove(list);
+    eCaptureSequenceKey.currentState?.remove(list);
     RequestRowState.removeAutoReadByIds(list.map((request) => request.requestId));
   }
 
@@ -145,6 +163,7 @@ class RequestListState extends State<RequestListWidget> {
     _currentSearchModel = searchModel; // 保存当前搜索状态
     requestSequenceKey.currentState?.search(searchModel);
     domainListKey.currentState?.search(searchModel);
+    eCaptureSequenceKey.currentState?.search(searchModel);
   }
 
   Iterable<HttpRequest>? currentView() {
@@ -158,6 +177,7 @@ class RequestListState extends State<RequestListWidget> {
       container.clear();
       domainListKey.currentState?.clean();
       requestSequenceKey.currentState?.clean();
+      eCaptureSequenceKey.currentState?.clean();
     });
   }
 
@@ -172,6 +192,7 @@ class RequestListState extends State<RequestListWidget> {
 
     domainListKey.currentState?.clean();
     requestSequenceKey.currentState?.clean();
+    eCaptureSequenceKey.currentState?.clean();
     RequestRowState.removeAutoReadByIds(removeRange.map((request) => request.requestId));
   }
 

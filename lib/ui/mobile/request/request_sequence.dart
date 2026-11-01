@@ -30,6 +30,7 @@ class RequestSequence extends StatefulWidget {
   final bool? sortDesc;
   final Function(List<HttpRequest>)? onRemove;
   final MultiSelectController selectionController;
+  final bool Function(HttpRequest request)? requestFilter;
 
   const RequestSequence(
       {super.key,
@@ -38,7 +39,8 @@ class RequestSequence extends StatefulWidget {
       this.displayDomain = true,
       this.onRemove,
       this.sortDesc,
-      required this.selectionController});
+      required this.selectionController,
+      this.requestFilter});
 
   @override
   State<StatefulWidget> createState() {
@@ -72,7 +74,7 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
   void initState() {
     super.initState();
     sortDesc = widget.sortDesc ?? true;
-    view.addAll(widget.container.source.reversed);
+    view.addAll(_source().reversed);
     selectionListener = MultiSelectListener((items) {
       if (!mounted) {
         return;
@@ -97,10 +99,24 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
     super.dispose();
   }
 
+  Iterable<HttpRequest> _source() {
+    final filter = widget.requestFilter;
+    if (filter == null) return widget.container.source;
+    return widget.container.source.where(filter);
+  }
+
+  bool _accept(HttpRequest request) {
+    final filter = widget.requestFilter;
+    if (filter != null && !filter(request)) return false;
+    if (searchModel?.isNotEmpty == true && !searchModel!.filter(request, request.response)) {
+      return false;
+    }
+    return true;
+  }
+
   ///添加请求
   void add(HttpRequest request) {
-    ///过滤
-    if (searchModel?.isNotEmpty == true && !searchModel!.filter(request, request.response)) {
+    if (!_accept(request)) {
       return;
     }
 
@@ -126,10 +142,15 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
       return;
     }
 
+    final request = response.request!;
+    if (widget.requestFilter != null && !widget.requestFilter!(request)) {
+      return;
+    }
+
     //搜索视图
-    if (searchModel?.filter(response.request!, response) == true && callback == null) {
-      if (!view.contains(response.request)) {
-        view.addFirst(response.request!);
+    if (searchModel?.filter(request, response) == true && callback == null) {
+      if (!view.contains(request)) {
+        view.addFirst(request);
         changeState();
       }
     }
@@ -141,7 +162,7 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
       view.clear();
       responseCallbacks.clear();
 
-      view.addAll(widget.container.source.reversed);
+      view.addAll(_source().reversed);
     });
   }
 
@@ -160,9 +181,9 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
   void search(SearchModel searchModel) {
     this.searchModel = searchModel;
     if (searchModel.isEmpty) {
-      view = Queue.of(widget.container.source.reversed);
+      view = Queue.of(_source().reversed);
     } else {
-      view = Queue.of(widget.container.where((it) => searchModel.filter(it, it.response)).toList().reversed);
+      view = Queue.of(_source().where((it) => searchModel.filter(it, it.response)).toList().reversed);
     }
     selectionController.prune(view.map((request) => request.requestId));
     changeState();

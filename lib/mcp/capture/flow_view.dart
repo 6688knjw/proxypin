@@ -64,6 +64,8 @@ class FlowView {
       'responseSize': response?.body?.length ?? 0,
       'durationMs': durationMs,
       'time': request.requestTime.toUtc().toIso8601String(),
+      'source': request.fromECapture ? 'ecapture' : 'mitm',
+      if (request.processInfo != null) 'process': request.processInfo!.name,
       'websocket': request.isWebSocket || (response?.isWebSocket ?? false),
     };
   }
@@ -76,6 +78,8 @@ class FlowView {
       'id': request.requestId,
       'method': request.method.name,
       'url': request.requestUrl,
+      'source': request.fromECapture ? 'ecapture' : 'mitm',
+      if (request.processInfo != null) 'process': request.processInfo!.name,
       'httpVersion': request.protocolVersion,
       'time': request.requestTime.toUtc().toIso8601String(),
       'durationMs': response == null

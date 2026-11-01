@@ -12,8 +12,8 @@ Prerequisites: desktop ProxyPin is running and the MCP service is enabled. By de
 
 The service always exposes the full tool set (like Proxyman — there is no read-only mode):
 
-- **Read-only tools**: `get_proxy_status`, `list_histories`, `list_flows`, `search_flows`, `get_flow_detail`, `get_flow_body`, `get_flow_messages`, `get_ssl_proxying_list`, `export_flow_curl`.
-- **Write tools**: rule writes (breakpoint / block / map-local / rewrite / script), host filter, replay, system proxy, favorites, clear session, code generation.
+- **Read-only tools**: `get_proxy_status`, `list_histories`, `list_flows`, `search_flows`, `get_flow_detail`, `get_flow_body`, `get_flow_messages`, `get_ssl_proxying_list`, `get_ecapture_status`, `export_flow_curl`.
+- **Write tools**: rule writes (breakpoint / block / map-local / rewrite / script), host filter, replay, system proxy, eCapture session (`ecapture_discover` / `ecapture_start` / `ecapture_stop` / `enable_ecapture`), favorites, clear session, code generation.
 
 Confirm reachability with `get_proxy_status` first; then get the rule index from `list_rules` (every `remove_*` / `update_*` tool takes `index`).
 
@@ -22,7 +22,8 @@ Confirm reachability with `get_proxy_status` first; then get the rule index from
 1. **Overview**: `list_flows(limit: 20)` for the latest traffic; for aggregates (host/method/status) pull a batch once and count locally — don't call `get_flow_detail` per flow.
    - **Saved history**: to analyze an earlier session, call `list_histories` to get its `id`, then pass `history_id` to `list_flows` / `search_flows` / `get_flow_detail` / `get_flow_body` / `export_flow_curl` / `replay_flow` / `generate_code`. The same flow `id` is used; `history_id` only selects the session. WebSocket frames are not saved in history (`get_flow_messages` returns `available:false`).
 2. **Locate**:
-   - Filter by URL/host/method/status: `list_flows(host:, method:, keyword:, status_from:, status_to:)` (`keyword` matches the full URL; `host` is a substring).
+    - Filter by URL/host/method/status/source: `list_flows(host:, method:, keyword:, status_from:, status_to:, source:)` (`keyword` matches the full URL; `host` is a substring; `source` is `all` / `mitm` / `ecapture`).
+    - **eCapture (Android root, eBPF TLS plaintext, no MITM)**: session workflow only — `ecapture_discover(package)` then `ecapture_start(package)` then `list_flows(source: "ecapture")` then `ecapture_stop`. `get_ecapture_status` reads the current session. `enable_ecapture(enabled:)` only reuses the last package. Do not pass pcap/keylog/bash/argv. Each summary has `source: "ecapture"` or `"mitm"`. Use `get_flow_detail` / `get_flow_body` after listing.
    - **Search inside bodies**: `search_flows(keyword: "error 500")` — only searches bodies; binary and >2MB bodies are skipped.
 3. **Drill in**: `get_flow_detail(id:)` for headers (redacted by default) + a truncated body preview; page large bodies with `get_flow_body(id:, side:, offset:, limit:)`; WebSocket frames via `get_flow_messages`.
 4. **Reproduce / change**:
