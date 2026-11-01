@@ -419,7 +419,7 @@ class McpServer {
         McpTool(
           name: 'get_ecapture_status',
           description:
-              'Get Android eCapture session status: enabled, process status, target package/uid, protobuf event count, and hooked libssl paths. Use list_flows(source: "ecapture") to read captured plaintext.',
+              'Get Android eCapture session status: enabled, process status, target package/uid, protobuf event count, capturing (eventCount>0), launched, and hooked libssl paths. Use list_flows(source: "ecapture") to read captured plaintext. capturing=false with status=running means the hook is up but no TLS events yet.',
           inputSchema: {'type': 'object', 'properties': {}},
           handler: (_) async => ECaptureService.instance.statusSnapshot(),
         ),

@@ -48,10 +48,11 @@ class ECapturePlugin : AndroidFlutterPlugin() {
                     val pkg = call.argument<String>("package")
                     val uid = call.argument<Number>("uid")?.toInt()
                     val launch = call.argument<Boolean>("launch") ?: true
+                    val forceStop = call.argument<Boolean>("forceStop") ?: true
                     val libs = (call.argument<List<*>>("libs"))?.map { it.toString() }
                     io.execute {
                         try {
-                            reply(result, start(path, wsUrl, pkg, uid, libs, launch))
+                            reply(result, start(path, wsUrl, pkg, uid, libs, launch, forceStop))
                         } catch (e: Exception) {
                             reply(result, mapOf("ok" to false, "error" to (e.message ?: e.toString())))
                         }
@@ -139,7 +140,8 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         packageName: String?,
         uidArg: Int?,
         libsArg: List<String>?,
-        launch: Boolean
+        launch: Boolean,
+        forceStop: Boolean
     ): Map<String, Any> {
         if (!isRooted()) {
             return mapOf("ok" to false, "error" to "device is not rooted")
@@ -155,12 +157,12 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         val uid = uidArg?.takeIf { it > 0 } ?: uidOfPackage(pkg)
             ?: return mapOf("ok" to false, "error" to "package not installed: $pkg")
 
-        val discovered = discover(pkg)
+        val requested = libsArg?.map { it.trim() }?.filter { it.startsWith("/") && it.contains(".so") } ?: emptyList()
+        val discovered = if (requested.isEmpty()) discover(pkg) else emptyMap<String, Any>()
         val hookFromDiscover = (discovered["hookLibs"] as? List<*>)?.map { it.toString() } ?: emptyList()
         val classified = (discovered["libs"] as? List<*>)?.mapNotNull { item ->
             (item as? Map<*, *>)?.let { it["path"].toString() to it }
         }?.toMap() ?: emptyMap()
-        val requested = libsArg?.map { it.trim() }?.filter { it.startsWith("/") && it.endsWith(".so") } ?: emptyList()
         val hookPaths = (if (requested.isNotEmpty()) requested else hookFromDiscover)
             .filter { path ->
                 val info = classified[path] ?: classifyLib(path)
@@ -183,12 +185,14 @@ class ECapturePlugin : AndroidFlutterPlugin() {
             return mapOf("ok" to false, "error" to "copy binary failed: ${copy.stderr.ifEmpty { copy.stdout }}")
         }
 
-        execSu("am force-stop $pkg", timeoutSec = 8)
+        if (forceStop) {
+            execSu("am force-stop $pkg", timeoutSec = 8)
+        }
 
         val quotedWs = shQuote(wsUrl)
         val cmd = StringBuilder()
         cmd.append(": > $LOG; : > $PID_FILE; ")
-        cmd.append("echo package=$pkg uid=$uid >> $LOG; ")
+        cmd.append("echo package=$pkg uid=$uid forceStop=$forceStop >> $LOG; ")
         for (lib in hookPaths) {
             val info = classified[lib] ?: classifyLib(lib)
             val version = info["sslVersion"] as? String
@@ -208,14 +212,11 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         if (pids.isEmpty()) {
             return mapOf("ok" to false, "error" to "empty pid", "libs" to hookPaths)
         }
-        Thread.sleep(4000)
-        if (launch) {
-            execSu("monkey -p $pkg -c android.intent.category.LAUNCHER 1", timeoutSec = 10)
-            Thread.sleep(800)
-        }
+        Thread.sleep(if (forceStop) 4000 else 1000)
+        val launched = if (launch) launchApp(pkg) else pidsOf(pkg).isNotEmpty()
         if (!isRunning()) {
             val log = execSu("tail -n 60 $LOG", timeoutSec = 5).stdout
-            return mapOf("ok" to false, "error" to "process exited: $log", "pid" to pids.first(), "libs" to hookPaths)
+            return mapOf("ok" to false, "error" to "process exited: $log", "pid" to pids.first(), "libs" to hookPaths, "launched" to launched)
         }
         return mapOf(
             "ok" to true,
@@ -224,8 +225,27 @@ class ECapturePlugin : AndroidFlutterPlugin() {
             "pid" to pids.first(),
             "pids" to pids,
             "libs" to hookPaths,
-            "launched" to launch
+            "launched" to launched,
+            "forceStop" to forceStop
         )
+    }
+
+    private fun launchApp(pkg: String): Boolean {
+        execSu("monkey -p $pkg -c android.intent.category.LAUNCHER 1", timeoutSec = 10)
+        Thread.sleep(800)
+        if (pidsOf(pkg).isNotEmpty()) return true
+        val component = execSu(
+            "cmd package resolve-activity --brief $pkg 2>/dev/null | tail -n 1",
+            timeoutSec = 5
+        ).stdout.trim().lines().lastOrNull()?.trim().orEmpty()
+        if (component.contains("/")) {
+            execSu("am start -n ${shQuote(component)}", timeoutSec = 10)
+            Thread.sleep(800)
+            if (pidsOf(pkg).isNotEmpty()) return true
+        }
+        execSu("am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER $pkg", timeoutSec = 10)
+        Thread.sleep(800)
+        return pidsOf(pkg).isNotEmpty()
     }
 
     private fun stop() {

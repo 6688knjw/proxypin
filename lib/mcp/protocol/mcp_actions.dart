@@ -1075,7 +1075,7 @@ class McpActions {
           if (pkg == null || pkg.trim().isEmpty) {
             throw ToolException('No last eCapture package. Call ecapture_discover then ecapture_start with a package.');
           }
-          return ecap.startSession(package: pkg.trim());
+          return ecap.startSession(package: pkg.trim(), forceStop: false, launch: false);
         },
       );
 
@@ -1115,6 +1115,10 @@ class McpActions {
               'type': 'boolean',
               'description': 'Relaunch the app after starting eCapture. Default true.'
             },
+            'force_stop': {
+              'type': 'boolean',
+              'description': 'Force-stop the target app before attaching. Default true for a new session.'
+            },
           },
           'required': ['package'],
         },
@@ -1132,7 +1136,14 @@ class McpActions {
             libs = rawLibs.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
           }
           var launch = a['launch'] is bool ? a['launch'] as bool : true;
-          return ECaptureService.instance.startSession(package: pkg, uid: uid, libs: libs, launch: launch);
+          var forceStop = a['force_stop'] is bool ? a['force_stop'] as bool : true;
+          return ECaptureService.instance.startSession(
+            package: pkg,
+            uid: uid,
+            libs: libs,
+            launch: launch,
+            forceStop: forceStop,
+          );
         },
       );
 

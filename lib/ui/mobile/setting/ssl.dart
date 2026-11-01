@@ -31,6 +31,7 @@ import 'package:proxypin/storage/local_storage.dart';
 import 'package:proxypin/storage/shared_preference_keys.dart';
 import 'package:proxypin/ui/component/utils.dart';
 import 'package:proxypin/ui/mobile/menu/drawer.dart';
+import 'package:proxypin/ui/mobile/setting/app_filter.dart';
 import 'package:proxypin/ui/mobile/setting/client_cert.dart';
 import 'package:proxypin/utils/lang.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -87,22 +88,32 @@ class _MobileSslState extends State<MobileSslWidget> {
 
   bool get _isZh => AppLocalizations.of(context)!.localeName.startsWith('zh');
 
+  String get _eCapturePackage =>
+      ECaptureService.instance.package ?? widget.proxyServer.configuration.eCapturePackage ?? '';
+
   String _eCaptureSwitchSubtitle() {
     final describe = AppLocalizations.of(context)!.enableECaptureDescribe;
+    final pkg = _eCapturePackage;
+    final pkgHint = pkg.isEmpty ? (_isZh ? '未选目标 App' : 'no target app') : pkg;
     if (!widget.proxyServer.configuration.enableECapture) {
-      return describe;
+      return '$describe\n$pkgHint';
     }
-    final status = ECaptureService.instance.status;
-    final count = ECaptureService.instance.eventCount;
+    final snap = ECaptureService.instance.statusSnapshot();
+    final status = snap['status'];
+    final count = snap['eventCount'];
+    final capturing = snap['capturing'] == true;
+    final launched = snap['launched'] == true;
     final libs = ECaptureService.instance.hookedLibs;
-    final pkg = ECaptureService.instance.package ?? widget.proxyServer.configuration.eCapturePackage;
     final libHint = libs.isEmpty
         ? (_isZh ? '未扫到 APK 自带 SSL' : 'no APK SSL libs')
         : libs.map((e) => e.split('/').last).take(4).join(', ');
-    final pkgHint = (pkg == null || pkg.isEmpty) ? (_isZh ? '无目标包' : 'no package') : pkg;
+    final captureHint = capturing
+        ? (_isZh ? '已抓到明文' : 'plaintext seen')
+        : (_isZh ? '尚未抓到事件' : 'no TLS events yet');
+    final launchHint = launched ? '' : (_isZh ? '，目标 App 未拉起' : ', app not launched');
     final detail = _isZh
-        ? '目标 $pkgHint，状态: $status，事件 $count，hook $libHint'
-        : 'Target $pkgHint, status: $status, events $count, hook $libHint';
+        ? '目标 $pkgHint，状态: $status，$captureHint$launchHint，事件 $count，hook $libHint'
+        : 'Target $pkgHint, status: $status, $captureHint$launchHint, events $count, hook $libHint';
     return '$describe\n$detail';
   }
 
@@ -110,8 +121,17 @@ class _MobileSslState extends State<MobileSslWidget> {
     if (!enabling) {
       return _isZh ? 'eCapture 已关闭' : 'eCapture stopped';
     }
-    final status = ECaptureService.instance.status;
+    final snap = ECaptureService.instance.statusSnapshot();
+    final status = snap['status']?.toString() ?? '';
+    final capturing = snap['capturing'] == true;
+    final launched = snap['launched'] == true;
     if (status == 'running') {
+      if (!launched) {
+        return _isZh ? 'eCapture 已启动，目标 App 未拉起，请手动打开' : 'eCapture running. Open the target app manually';
+      }
+      if (!capturing) {
+        return _isZh ? 'eCapture 已启动，尚未抓到 TLS 事件' : 'eCapture running, no TLS events yet';
+      }
       return _isZh ? 'eCapture 已启动，明文会出现在 eCapture 列表' : 'eCapture running. Plaintext appears in the eCapture tab';
     }
     if (status == 'waiting websocket') {
@@ -121,6 +141,20 @@ class _MobileSslState extends State<MobileSslWidget> {
       return _isZh ? 'eCapture 正在启动: $status' : 'eCapture starting: $status';
     }
     return _isZh ? 'eCapture 启动失败: $status' : 'eCapture failed: $status';
+  }
+
+  Future<void> _pickECapturePackage() async {
+    final packageName = await Navigator.of(context).push<String>(MaterialPageRoute(
+      builder: (context) => const InstalledAppsWidget(addedList: []),
+    ));
+    if (packageName == null || packageName.isEmpty) return;
+    widget.proxyServer.configuration.eCapturePackage = packageName;
+    widget.proxyServer.configuration.eCaptureLibs = [];
+    await widget.proxyServer.configuration.flushConfig();
+    if (widget.proxyServer.configuration.enableECapture) {
+      await ECaptureService.instance.startSession(package: packageName);
+    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -168,21 +202,29 @@ class _MobileSslState extends State<MobileSslWidget> {
                   value: widget.proxyServer.configuration.enableECapture,
                   onChanged: (val) async {
                     if (val) {
-                      final pkg = widget.proxyServer.configuration.eCapturePackage;
+                      var pkg = widget.proxyServer.configuration.eCapturePackage;
                       if (pkg == null || pkg.isEmpty) {
-                        FlutterToastr.show(
-                            _isZh ? '请先用 MCP 指定目标包: ecapture_discover / ecapture_start' : 'Set a target package first via ecapture_discover / ecapture_start',
-                            context);
-                        return;
+                        await _pickECapturePackage();
+                        pkg = widget.proxyServer.configuration.eCapturePackage;
+                        if (pkg == null || pkg.isEmpty) return;
                       }
+                      await ECaptureService.instance.startSession(package: pkg);
+                    } else {
+                      await ECaptureService.instance.stopSession();
                     }
-                    widget.proxyServer.configuration.enableECapture = val;
-                    widget.proxyServer.configuration.flushConfig();
-                    setState(() {});
-                    await ECaptureService.instance.setEnabled(val);
                     if (mounted) setState(() {});
                     if (!mounted) return;
                     FlutterToastr.show(_eCaptureStatusText(val), context);
+                  }),
+            if (Platform.isAndroid) Divider(height: 0, thickness: 0.3, color: dividerColor),
+            if (Platform.isAndroid)
+              ListTile(
+                  title: Text(_isZh ? 'eCapture 目标 App' : 'eCapture target app'),
+                  subtitle: Text(_eCapturePackage.isEmpty ? (_isZh ? '点这里选择要抓的 App' : 'Pick the app to capture') : _eCapturePackage),
+                  trailing: const Icon(Icons.keyboard_arrow_right),
+                  onTap: () async {
+                    await _pickECapturePackage();
+                    if (mounted) setState(() {});
                   }),
             Divider(height: 0, thickness: 0.3, color: dividerColor),
             ListTile(

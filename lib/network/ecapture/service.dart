@@ -53,6 +53,8 @@ class ECaptureService {
   int? _uid;
   List<String> _requestedLibs = const [];
   bool _launch = true;
+  bool _forceStop = true;
+  bool _launched = false;
   Map<String, dynamic> _lastDiscover = const {};
 
   bool get isRunning => _enabled && _httpServer != null;
@@ -72,6 +74,9 @@ class ECaptureService {
   void attach(ProxyServer server) {
     _server = server;
     _package ??= server.configuration.eCapturePackage;
+    if (_requestedLibs.isEmpty) {
+      _requestedLibs = List<String>.from(server.configuration.eCaptureLibs);
+    }
   }
 
   Future<Map<String, dynamic>> discover(String package) async {
@@ -87,7 +92,9 @@ class ECaptureService {
     if (result['ok'] == true) {
       _package = result['package']?.toString() ?? pkg;
       _uid = _asInt(result['uid']);
-      await _persistSession(enabled: _enabled, package: _package);
+      final hook = _parseLibs(result['hookLibs']);
+      if (hook.isNotEmpty) _requestedLibs = hook;
+      await _persistSession(package: _package, libs: _requestedLibs);
     }
     return result;
   }
@@ -97,6 +104,7 @@ class ECaptureService {
     int? uid,
     List<String>? libs,
     bool launch = true,
+    bool forceStop = true,
   }) async {
     if (!io.Platform.isAndroid) {
       _status = 'unsupported';
@@ -107,12 +115,18 @@ class ECaptureService {
       _status = 'package is required';
       return statusSnapshot(ok: false, error: 'package is required');
     }
+    final packageChanged = _package != pkg;
     _package = pkg;
     _uid = uid;
-    _requestedLibs = libs?.where((e) => e.trim().isNotEmpty).toList() ?? const [];
+    if (libs != null) {
+      _requestedLibs = libs.where((e) => e.trim().isNotEmpty).toList();
+    } else if (packageChanged) {
+      _requestedLibs = const [];
+    }
     _launch = launch;
+    _forceStop = forceStop;
     _enabled = true;
-    await _persistSession(enabled: true, package: pkg);
+    await _persistSession(package: pkg, libs: packageChanged ? const [] : null);
     return start();
   }
 
@@ -137,6 +151,8 @@ class ECaptureService {
           error == null)
         'error': _status,
       'eventCount': _eventCount,
+      'capturing': _eventCount > 0,
+      'launched': _launched,
       'hookedLibs': _hookedLibs,
       'package': _package,
       'uid': _uid,
@@ -151,12 +167,16 @@ class ECaptureService {
       return;
     }
     if (enabled) {
-      _enabled = true;
-      _package ??= _server?.configuration.eCapturePackage;
-      await start();
+      final pkg = _package ?? _server?.configuration.eCapturePackage;
+      if (pkg == null || pkg.trim().isEmpty) {
+        _status = 'package is required';
+        await _persistSession(enabled: false);
+        return;
+      }
+      await startSession(package: pkg.trim(), forceStop: false, launch: false);
       return;
     }
-    await stop();
+    await stopSession();
   }
 
   Future<Map<String, dynamic>> start() async {
@@ -175,11 +195,16 @@ class ECaptureService {
     try {
       final package = _package ?? _server?.configuration.eCapturePackage;
       if (package == null || package.trim().isEmpty) {
+        _enabled = false;
         _status = 'package is required';
         logger.w('[eCapture] start skipped: package is required');
+        await _persistSession(enabled: false);
         return statusSnapshot(ok: false, error: 'package is required');
       }
       _package = package.trim();
+      if (_requestedLibs.isEmpty) {
+        _requestedLibs = List<String>.from(_server?.configuration.eCaptureLibs ?? const []);
+      }
       await _listenWs();
       final binary = await ECaptureBinary.resolve();
       final native = await ECaptureNative.start(
@@ -189,25 +214,33 @@ class ECaptureService {
         uid: _uid,
         libs: _requestedLibs.isEmpty ? null : _requestedLibs,
         launch: _launch,
+        forceStop: _forceStop,
       );
       if (native['ok'] != true) {
+        _enabled = false;
         _status = (native['error'] as String?) ?? 'native start failed';
         _hookedLibs = _parseLibs(native['libs']);
+        _launched = native['launched'] == true;
         logger.w('[eCapture] native start failed: $_status');
+        await _persistSession(enabled: false, package: _package);
         return statusSnapshot(ok: false, error: _status);
       }
       _hookedLibs = _parseLibs(native['libs']);
+      if (_hookedLibs.isNotEmpty) _requestedLibs = _hookedLibs;
       _uid = _asInt(native['uid']) ?? _uid;
-      logger.i('[eCapture] hooked libs: $_hookedLibs');
+      _launched = native['launched'] == true;
+      logger.i('[eCapture] hooked libs: $_hookedLibs launched=$_launched forceStop=$_forceStop');
       for (var i = 0; i < 20 && !_hasClient; i++) {
         await Future.delayed(const Duration(milliseconds: 150));
       }
       _status = _hasClient ? 'running' : 'waiting websocket';
-      await _persistSession(enabled: true, package: _package);
+      await _persistSession(enabled: true, package: _package, libs: _hookedLibs);
       return statusSnapshot(ok: true);
     } catch (e, st) {
+      _enabled = false;
       _status = e.toString();
       logger.e('[eCapture] start failed', error: e, stackTrace: st);
+      await _persistSession(enabled: false, package: _package);
       return statusSnapshot(ok: false, error: _status);
     } finally {
       _starting = false;
@@ -256,12 +289,15 @@ class ECaptureService {
     return null;
   }
 
-  Future<void> _persistSession({required bool enabled, String? package}) async {
+  Future<void> _persistSession({bool? enabled, String? package, List<String>? libs}) async {
     final config = _server?.configuration;
     if (config == null) return;
-    config.enableECapture = enabled;
+    if (enabled != null) config.enableECapture = enabled;
     if (package != null && package.isNotEmpty) {
       config.eCapturePackage = package;
+    }
+    if (libs != null) {
+      config.eCaptureLibs = List<String>.from(libs);
     }
     await config.flushConfig();
   }
@@ -345,6 +381,8 @@ class ECaptureService {
       if (!_hasClient) {
         await ECaptureNative.stop();
       }
+      _forceStop = false;
+      _launch = false;
       await start();
     } catch (e, st) {
       logger.w('[eCapture] native restart failed: $e', stackTrace: st);

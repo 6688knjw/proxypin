@@ -40,6 +40,7 @@ class ECaptureNative {
     int? uid,
     List<String>? libs,
     bool launch = true,
+    bool forceStop = true,
   }) async {
     try {
       final raw = await _channel.invokeMethod('start', {
@@ -49,6 +50,7 @@ class ECaptureNative {
         if (uid != null) 'uid': uid,
         if (libs != null) 'libs': libs,
         'launch': launch,
+        'forceStop': forceStop,
       });
       return _asMap(raw);
     } on MissingPluginException {

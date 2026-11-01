@@ -63,6 +63,9 @@ class Configuration {
   /// 上次 eCapture 会话目标包名；UI 开关复用该目标
   String? eCapturePackage;
 
+  /// 上次成功 hook 的 libssl 路径，重连时跳过 discover
+  List<String> eCaptureLibs = [];
+
   //历史记录缓存时间
   int historyCacheTime = 0;
 
@@ -100,6 +103,7 @@ class Configuration {
     if (eCapturePackage != null && eCapturePackage!.isEmpty) {
       eCapturePackage = null;
     }
+    eCaptureLibs = List<String>.from(config['eCaptureLibs'] ?? const <String>[]);
 
     proxyPassDomains = config['proxyPassDomains'] ?? SystemProxy.proxyPassDomains;
     historyCacheTime = config['historyCacheTime'] ?? 0;
@@ -163,6 +167,7 @@ class Configuration {
       'enabledHttp2': enabledHttp2,
       'enableECapture': enableECapture,
       'eCapturePackage': eCapturePackage,
+      'eCaptureLibs': eCaptureLibs,
       'whitelist': HostFilter.whitelist.toJson(),
       'blacklist': HostFilter.blacklist.toJson(),
     };
