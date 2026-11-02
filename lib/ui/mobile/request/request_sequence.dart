@@ -74,7 +74,7 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
   void initState() {
     super.initState();
     sortDesc = widget.sortDesc ?? true;
-    view.addAll(_source().reversed);
+      view.addAll(_source().toList().reversed);
     selectionListener = MultiSelectListener((items) {
       if (!mounted) {
         return;
@@ -162,7 +162,7 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
       view.clear();
       responseCallbacks.clear();
 
-      view.addAll(_source().reversed);
+    view.addAll(_source().toList().reversed);
     });
   }
 
@@ -181,7 +181,7 @@ class RequestSequenceState extends State<RequestSequence> with AutomaticKeepAliv
   void search(SearchModel searchModel) {
     this.searchModel = searchModel;
     if (searchModel.isEmpty) {
-      view = Queue.of(_source().reversed);
+      view = Queue.of(_source().toList().reversed);
     } else {
       view = Queue.of(_source().where((it) => searchModel.filter(it, it.response)).toList().reversed);
     }
