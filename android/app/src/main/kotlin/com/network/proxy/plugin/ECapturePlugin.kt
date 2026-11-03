@@ -1,5 +1,8 @@
 package com.network.proxy.plugin
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -15,13 +18,14 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         const val DEST = "/data/local/tmp/proxypin-dev-ecapture"
         const val LOG = "/data/local/tmp/proxypin-dev-ecapture.log"
         const val PID_FILE = "/data/local/tmp/proxypin-dev-ecapture.pid"
-        const val SYSTEM_SSL = "/apex/com.android.conscrypt/lib64/libssl.so"
     }
 
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
+    private lateinit var appContext: Context
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        appContext = binding.applicationContext
         val channel = MethodChannel(binding.binaryMessenger, CHANNEL)
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -63,7 +67,7 @@ class ECapturePlugin : AndroidFlutterPlugin() {
                     reply(result, null)
                 }
                 "getProcessByPid" -> {
-                    val pid = call.argument<Int>("pid")
+                    val pid = call.argument<Number>("pid")?.toInt()
                     if (pid == null || pid <= 0) {
                         result.success(null)
                         return@setMethodCallHandler
@@ -103,9 +107,9 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         }
         val pids = pidsOf(pkg)
         val pid = pids.firstOrNull()
-        val maps = if (pid != null) scanMaps(pid) else emptyList()
+        val maps = pids.flatMap { scanMaps(it) }.distinct()
         val apk = scanApkLibs(pkg)
-        val merged = (maps + apk + listOfNotNull(systemSslOrNull())).distinct()
+        val merged = mergeLibPaths(maps, apk)
         val libs = merged.map { classifyLib(it) }
         val hookable = libs.filter { it["hook"] == true }
         val kinds = libs.map { it["kind"].toString() }.toSet()
@@ -158,12 +162,24 @@ class ECapturePlugin : AndroidFlutterPlugin() {
             ?: return mapOf("ok" to false, "error" to "package not installed: $pkg")
 
         val requested = libsArg?.map { it.trim() }?.filter { it.startsWith("/") && it.contains(".so") } ?: emptyList()
-        val discovered = if (requested.isEmpty()) discover(pkg) else emptyMap<String, Any>()
+        val requestedPrivate = requested.filter { path ->
+            val info = classifyLib(path)
+            info["hook"] == true && info["kind"] != "conscrypt" && info["kind"] != "system"
+        }
+        val discovered = if (requestedPrivate.isEmpty()) discover(pkg) else emptyMap<String, Any>()
+        if (requestedPrivate.isEmpty() && discovered["ok"] != true) {
+            return mapOf(
+                "ok" to false,
+                "error" to (discovered["error"]?.toString() ?: "discover failed"),
+                "package" to pkg,
+                "uid" to uid
+            )
+        }
         val hookFromDiscover = (discovered["hookLibs"] as? List<*>)?.map { it.toString() } ?: emptyList()
         val classified = (discovered["libs"] as? List<*>)?.mapNotNull { item ->
             (item as? Map<*, *>)?.let { it["path"].toString() to it }
         }?.toMap() ?: emptyMap()
-        val hookPaths = (if (requested.isNotEmpty()) requested else hookFromDiscover)
+        val hookPaths = requestedPrivate.ifEmpty { hookFromDiscover }
             .filter { path ->
                 val info = classified[path] ?: classifyLib(path)
                 info["hook"] == true
@@ -180,7 +196,7 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         }
 
         stop()
-        val copy = execSu("cp '${src.absolutePath}' $DEST && chmod 755 $DEST", timeoutSec = 20)
+        val copy = execSu("cp ${shQuote(src.absolutePath)} $DEST && chmod 755 $DEST", timeoutSec = 20)
         if (copy.exit != 0) {
             return mapOf("ok" to false, "error" to "copy binary failed: ${copy.stderr.ifEmpty { copy.stdout }}")
         }
@@ -203,12 +219,12 @@ class ECapturePlugin : AndroidFlutterPlugin() {
             }
             cmd.append(" --ecaptureq=$quotedWs >>$LOG 2>&1 & echo \$! >> $PID_FILE; ")
         }
-        cmd.append("cat $PID_FILE")
+        cmd.append("echo __ECAP_PIDS__; cat $PID_FILE")
         val started = execSu(cmd.toString(), timeoutSec = 30)
         if (started.exit != 0) {
             return mapOf("ok" to false, "error" to "start failed: ${started.stderr.ifEmpty { started.stdout }}", "libs" to hookPaths)
         }
-        val pids = started.stdout.trim().lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val pids = parseMarkedInts(started.stdout, "__ECAP_PIDS__")
         if (pids.isEmpty()) {
             return mapOf("ok" to false, "error" to "empty pid", "libs" to hookPaths)
         }
@@ -235,9 +251,9 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         Thread.sleep(800)
         if (pidsOf(pkg).isNotEmpty()) return true
         val component = execSu(
-            "cmd package resolve-activity --brief $pkg 2>/dev/null | tail -n 1",
+            "cmd package resolve-activity --brief $pkg 2>/dev/null",
             timeoutSec = 5
-        ).stdout.trim().lines().lastOrNull()?.trim().orEmpty()
+        ).stdout.lineSequence().map { it.trim() }.lastOrNull { it.contains('/') && !it.contains(' ') }.orEmpty()
         if (component.contains("/")) {
             execSu("am start -n ${shQuote(component)}", timeoutSec = 10)
             Thread.sleep(800)
@@ -259,13 +275,71 @@ class ECapturePlugin : AndroidFlutterPlugin() {
     }
 
     private fun uidOfPackage(pkg: String): Int? {
-        val out = execSu("stat -c %u /data/data/$pkg", timeoutSec = 5)
-        return out.stdout.trim().lines().firstOrNull()?.trim()?.toIntOrNull()
+        uidFromPackageManager(pkg)?.let { return it }
+
+        val listed = execSu("pm list packages -U $pkg", timeoutSec = 8)
+        parseUidFromPmList(listed.stdout, pkg)?.let { return it }
+
+        val dumped = execSu("dumpsys package $pkg 2>/dev/null | grep -m 1 'userId='", timeoutSec = 8)
+        parseUserId(dumped.stdout)?.let { return it }
+
+        for (path in listOf("/data/user/0/$pkg", "/data/data/$pkg")) {
+            val out = execSu("stat -c %u $path", timeoutSec = 5)
+            parseFirstInt(out.stdout)?.let { return it }
+        }
+        return null
+    }
+
+    private fun uidFromPackageManager(pkg: String): Int? {
+        return applicationInfoOrNull(pkg)?.uid?.takeIf { it > 0 }
+    }
+
+    private fun applicationInfoOrNull(pkg: String): ApplicationInfo? {
+        val pm = packageManagerOrNull() ?: return null
+        return try {
+            pm.getApplicationInfo(pkg, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun packageManagerOrNull(): PackageManager? {
+        if (isActivityAttached()) return activity.packageManager
+        if (::appContext.isInitialized) return appContext.packageManager
+        return null
+    }
+
+    private fun parseUidFromPmList(stdout: String, pkg: String): Int? {
+        val pattern = Regex("(?:^|\\s)package:${Regex.escape(pkg)}\\s+uid:\\s*(\\d+)")
+        return pattern.find(stdout)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it > 0 }
+    }
+
+    private fun parseUserId(stdout: String): Int? {
+        return Regex("(?:^|\\s)userId=(\\d+)").find(stdout)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it > 0 }
+    }
+
+    private fun parseFirstInt(stdout: String): Int? {
+        for (line in stdout.lineSequence()) {
+            val token = line.trim()
+            if (token.isNotEmpty() && token.all { it.isDigit() }) {
+                return token.toIntOrNull()?.takeIf { it > 0 }
+            }
+        }
+        return null
     }
 
     private fun pidsOf(pkg: String): List<Int> {
-        val out = execSu("pidof $pkg", timeoutSec = 5)
-        return out.stdout.trim().split(Regex("\\s+")).mapNotNull { it.toIntOrNull() }
+        val out = execSu(
+            "echo __ECAP_APP_PIDS__; " +
+                "for p in /proc/[0-9]*; do " +
+                "c=\$(tr '\\0' ' ' < \"\$p/cmdline\" 2>/dev/null); " +
+                "case \"\$c\" in $pkg|$pkg:*|$pkg' '*) echo \${p#/proc/};; esac; " +
+                "done; pidof $pkg 2>/dev/null",
+            timeoutSec = 8
+        )
+        return parseMarkedInts(out.stdout, "__ECAP_APP_PIDS__").distinct()
     }
 
     private fun scanMaps(pid: Int): List<String> {
@@ -273,28 +347,66 @@ class ECapturePlugin : AndroidFlutterPlugin() {
             "awk '\$6 ~ /^\\// && \$6 ~ /\\.so/ {print \$6}' /proc/$pid/maps 2>/dev/null | sort -u | grep -iE 'libssl|conscrypt|cronet|libflutter|libsscronet|boring'",
             timeoutSec = 10
         )
-        return out.stdout.lineSequence()
-            .map { it.trim() }
-            .filter { it.startsWith("/") && it.contains(".so") && !it.contains("!") }
-            .distinct()
-            .toList()
+        return pathLines(out.stdout)
     }
 
     private fun scanApkLibs(pkg: String): List<String> {
-        val out = execSu(
-            "ls -1 /data/app/*/$pkg-*/lib/arm64/*.so /data/app/$pkg-*/lib/arm64/*.so 2>/dev/null | grep -iE 'libssl|boring|cronet|flutter'",
-            timeoutSec = 8
-        )
-        return out.stdout.lineSequence()
+        val dirs = linkedSetOf<String>()
+        val app = applicationInfoOrNull(pkg)
+        app?.nativeLibraryDir?.takeIf { it.isNotEmpty() }?.let { dirs.add(it) }
+        app?.sourceDir?.let { src ->
+            File(src).parentFile?.absolutePath?.let { parent ->
+                dirs.add("$parent/lib/arm64")
+                dirs.add("$parent/lib/arm")
+                dirs.add("$parent/lib/arm64-v8a")
+                dirs.add("$parent/lib/armeabi-v7a")
+            }
+        }
+        val findCmd = if (dirs.isNotEmpty()) {
+            val quoted = dirs.joinToString(" ") { shQuote(it) }
+            "for d in $quoted; do ls -1 \"\$d\"/*.so 2>/dev/null; done"
+        } else {
+            apkLibGlob(pkg)
+        }
+        val out = execSu("$findCmd | grep -iE 'libssl|boring|cronet|flutter'", timeoutSec = 8)
+        val found = pathLines(out.stdout)
+        if (found.isNotEmpty()) return found
+        return pathLines(execSu("${apkLibGlob(pkg)} | grep -iE 'libssl|boring|cronet|flutter'", timeoutSec = 8).stdout)
+    }
+
+    private fun apkLibGlob(pkg: String): String {
+        return "ls -1 /data/app/*/$pkg-*/lib/arm64/*.so /data/app/*/$pkg-*/lib/arm/*.so " +
+            "/data/app/$pkg-*/lib/arm64/*.so /data/app/$pkg-*/lib/arm/*.so 2>/dev/null"
+    }
+
+    private fun mergeLibPaths(maps: List<String>, apk: List<String>): List<String> {
+        val found = (maps + apk).distinct()
+        val classified = found.associateWith { classifyLib(it) }
+        fun kindOf(path: String) = classified[path]?.get("kind")?.toString()
+        val privateHook = found.filter {
+            classified[it]?.get("hook") == true && kindOf(it) != "conscrypt" && kindOf(it) != "system"
+        }
+        if (privateHook.isNotEmpty()) {
+            return found.filter { kindOf(it) != "conscrypt" && kindOf(it) != "system" }
+        }
+        return found
+    }
+
+    private fun parseMarkedInts(stdout: String, marker: String): List<Int> {
+        val idx = stdout.lastIndexOf(marker)
+        val slice = if (idx >= 0) stdout.substring(idx + marker.length) else stdout
+        return slice.lineSequence()
             .map { it.trim() }
-            .filter { it.startsWith("/") && it.endsWith(".so") }
-            .distinct()
+            .mapNotNull { it.toIntOrNull()?.takeIf { n -> n > 0 } }
             .toList()
     }
 
-    private fun systemSslOrNull(): String? {
-        val out = execSu("[ -f $SYSTEM_SSL ] && echo $SYSTEM_SSL", timeoutSec = 3)
-        return out.stdout.trim().takeIf { it == SYSTEM_SSL }
+    private fun pathLines(stdout: String): List<String> {
+        return stdout.lineSequence()
+            .map { it.trim() }
+            .filter { it.startsWith("/") && it.contains(".so") && !it.contains("!") && !it.contains("*") }
+            .distinct()
+            .toList()
     }
 
     private fun classifyLib(path: String): Map<String, Any?> {
@@ -338,9 +450,8 @@ class ECapturePlugin : AndroidFlutterPlugin() {
     }
 
     private fun getProcessByPid(pid: Int): ProcessInfo? {
-        if (!isActivityAttached()) return null
         val uid = uidOfPid(pid) ?: return null
-        val packageManager = activity.packageManager
+        val packageManager = packageManagerOrNull() ?: return null
         val packages = try {
             packageManager.getPackagesForUid(uid)
         } catch (_: Exception) {
@@ -371,7 +482,7 @@ class ECapturePlugin : AndroidFlutterPlugin() {
         } catch (_: Exception) {
         }
         val out = execSu("awk '/^Uid:/{print \$2; exit}' /proc/$pid/status", timeoutSec = 5)
-        return out.stdout.trim().lines().firstOrNull()?.trim()?.toIntOrNull()
+        return parseFirstInt(out.stdout)
     }
 
     private fun shQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
@@ -382,16 +493,15 @@ class ECapturePlugin : AndroidFlutterPlugin() {
 
     private fun execSu(command: String, timeoutSec: Long): CmdResult {
         val process = ProcessBuilder("su", "-c", command)
-            .redirectErrorStream(false)
+            .redirectErrorStream(true)
             .start()
         val stdout = process.inputStream.bufferedReader().readText()
-        val stderr = process.errorStream.bufferedReader().readText()
         val finished = process.waitFor(timeoutSec, TimeUnit.SECONDS)
         if (!finished) {
             process.destroyForcibly()
-            return CmdResult(-1, stdout, stderr.ifEmpty { "timeout" })
+            return CmdResult(-1, stdout, "timeout")
         }
-        return CmdResult(process.exitValue(), stdout, stderr)
+        return CmdResult(process.exitValue(), stdout, stdout)
     }
 
     private data class CmdResult(val exit: Int, val stdout: String, val stderr: String)
